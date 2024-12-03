@@ -7,12 +7,44 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include "file.h"
+#include <pthread.h>
+
+#define MAX_SUB_DIRS 100
+#define MAX_PATH_LEN 256
+
+void* process_item(void* arg) {
+    char* item_path = (char*)arg;
+    printf("PID: %d create thread for %s: %lu\n", getppid(), item_path, pthread_self());
+
+    // read file
+
+    free(item_path);  
+    return NULL;
+}
+
+void create_thread_for_item(char item_path[]) {
+    pthread_t thread;
+    char* path_copy = strdup(item_path); 
+
+    if (pthread_create(&thread, NULL, process_item, path_copy) != 0) {
+        printf("Failed to create thread");
+        free(path_copy);
+        return;
+    }
+
+    // Detach the thread to allow independent execution
+    pthread_detach(thread);  
+}
 
 void create_process_for_category(char category_path[]) {
     pid_t pid = fork();
 
     if (pid == 0) {
         printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
+        char items[MAX_SUB_DIRS][MAX_PATH_LEN];
+        int item_count = find_item_dirs(category_path, items);
+
+        for (int i = 0; i < item_count; i++) create_thread_for_item(items[i]);
 
         exit(0);
     }else{
@@ -33,7 +65,7 @@ void create_process_for_store(char store_path[]) {
 
         for (int i = 0; i < sub_dir_count; i++) create_process_for_category(sub_dirs[i]);
 
-        exit(EXIT_SUCCESS);
+        exit(0);
     }else{
         wait(NULL);
     }

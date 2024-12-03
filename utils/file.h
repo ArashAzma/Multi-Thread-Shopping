@@ -8,7 +8,24 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
+int find_item_dirs(char category_path[], char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]) {
+    FILE *fp;
+    char path[MAX_PATH_LEN];
+    int item_count = 0;
 
+    char command[MAX_PATH_LEN + 50];
+    snprintf(command, sizeof(command), "find %s -mindepth 1 -maxdepth 1 -type f", category_path);
+    fp = popen(command, "r");
+
+    while (fgets(path, sizeof(path), fp) != NULL) {
+        path[strcspn(path, "\n")] = '\0';
+        strncpy(sub_dirs[item_count], path, MAX_PATH_LEN);
+        item_count++;
+    }
+
+    pclose(fp);
+    return item_count;
+}
 
 int find_sub_dirs(char store_path[], char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]) {
     FILE *fp;
