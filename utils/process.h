@@ -6,8 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
-#include "file.h"
 #include <pthread.h>
+
+#include "file.h"
+#include "user.h"
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
@@ -71,8 +73,7 @@ void create_process_for_store(char store_path[]) {
     }
 }
 
-// Yani chi bar asas userID ?
-void create_process_for_user(char userID[]){
+void create_process_for_user(userInfo user){
     char store_dirs[3][256];
     char sub_dirs[100][256];
     int store_dir_count = find_store_dirs(store_dirs);
@@ -92,7 +93,6 @@ void create_process_for_user(char userID[]){
     } else {
         wait(NULL);
     }
-
 }
 
 #endif 
