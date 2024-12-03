@@ -8,7 +8,7 @@
 #include "utils/file.h"
 
 int main() {
-    char userID[50];
+    char userID[50] = "USER1";
     // printf("ID: ");
     // scanf("%s", userID);
 

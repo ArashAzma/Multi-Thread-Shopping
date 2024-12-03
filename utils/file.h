@@ -8,12 +8,16 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
-int find_sub_dirs(char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]) {
+
+
+int find_sub_dirs(char store_path[], char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]) {
     FILE *fp;
     char path[MAX_PATH_LEN];
     int sub_dir_count = 0;
 
-    fp = popen("find Dataset -mindepth 2 -maxdepth 2 -type d", "r");
+    char command[MAX_PATH_LEN + 50];
+    snprintf(command, sizeof(command), "find %s -mindepth 1 -maxdepth 1 -type d", store_path);
+    fp = popen(command, "r");
 
     while (fgets(path, sizeof(path), fp) != NULL) {
         path[strcspn(path, "\n")] = '\0';
@@ -23,6 +27,24 @@ int find_sub_dirs(char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]) {
 
     pclose(fp);
     return sub_dir_count;
+}
+
+int find_store_dirs(char store_dirs[][MAX_PATH_LEN]) {
+    FILE *fp;
+    char path[MAX_PATH_LEN];
+    int store_dir_count = 0;
+
+    // fp = popen("find Dataset -mindepth 1 -maxdepth 1 -type d", "r");
+    fp = popen("find DatasetTest -mindepth 1 -maxdepth 1 -type d", "r");
+
+    while (fgets(path, sizeof(path), fp) != NULL) {
+        path[strcspn(path, "\n")] = '\0';
+        strncpy(store_dirs[store_dir_count], path, MAX_PATH_LEN);
+        store_dir_count++;
+    }
+
+    pclose(fp);
+    return store_dir_count;
 }
 
 #endif
