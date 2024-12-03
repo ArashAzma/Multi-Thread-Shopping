@@ -4,21 +4,15 @@
 #include <string.h>
 #include "store.h"
 
-void set_data(const char* filename) {
-    generate_dummy_data();
-    save_data_to_binary_file(filename);
-
-    memset(stores, 0, sizeof(stores));
-
-    load_data_from_binary_file(filename);
-}
+#include "utils/process.h"
+#include "utils/file.h"
 
 int main() {
-    const char* filename = "dataset.bin";
+    char userID[50];
+    // printf("ID: ");
+    // scanf("%s", userID);
 
-    set_data(filename);
-    
-    print_stores();
+    create_process_for_user(userID);
 
     return 0;
 }
