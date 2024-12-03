@@ -1,6 +1,0 @@
-Name: CC Cream
-Price: 175.06
-Score: 3.1
-Entity: 1
-
-Last Modified: 2024-11-23 18:50:11

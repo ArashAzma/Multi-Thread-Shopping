@@ -1,6 +1,0 @@
-Name: Electric Scooter
-Price: 701.1
-Score: 3.3
-Entity: 67
-
-Last Modified: 2024-11-23 18:50:11

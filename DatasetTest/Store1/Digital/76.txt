@@ -1,6 +1,0 @@
-Name: Airpod3
-Price: 733.27
-Score: 1.5
-Entity: 49
-
-Last Modified: 2024-11-23 18:50:11

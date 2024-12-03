@@ -1,6 +1,0 @@
-Name: Eye Cream
-Price: 551.1
-Score: 4.9
-Entity: 1
-
-Last Modified: 2024-11-23 18:50:11
