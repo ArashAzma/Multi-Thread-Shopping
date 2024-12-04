@@ -7,27 +7,25 @@
 
 #define ORDER_COUNT 3
 
-typedef struct Order
-{
+typedef struct Order {
     char name[50];
     int count;
 } order;
 
-typedef struct UserInfo
-{
+typedef struct UserInfo {
     char userID[50];
     order orderList[ORDER_COUNT];
     int priceThreshold;
 } userInfo;
 
-void print_user_data(userInfo user){
+void print_user_data(userInfo user) {
     printf("User ID: %s\n", user.userID);
     printf("Order List: \n");
     for (int i = 0; i < ORDER_COUNT; i++) printf("%s %d\n", user.orderList[i].name, user.orderList[i].count);
     printf("Price Threshold: %d\n", user.priceThreshold);
 }
 
-userInfo get_user_input(){
+userInfo get_user_input() {
     char userID[50];
     order orderList[ORDER_COUNT];
     int priceThreshold;
@@ -37,7 +35,7 @@ userInfo get_user_input(){
     printf("Username: ");
     scanf("%s", userID);
 
-    printf("OrderList: ");
+    printf("OrderList: \n");
     for (int i = 0; i < ORDER_COUNT; i++) scanf("%s %d", orderList[i].name, &orderList[i].count);
 
     printf("Price threshold: \n");
