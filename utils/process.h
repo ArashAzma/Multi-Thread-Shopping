@@ -85,7 +85,7 @@ void create_process_for_user(userInfo user){
         printf("Fork failed");
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
-        printf("%s create PID: %d\n", userID, getpid());
+        printf("%s create PID: %d\n", user.userID, getpid());
 
         for (int i=0; i<store_dir_count; i++) create_process_for_store(store_dirs[i]);
 
