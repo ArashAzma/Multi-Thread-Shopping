@@ -1,8 +1,8 @@
+#include "../headers/file.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "../headers/file.h"
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
@@ -13,7 +13,7 @@ int find_item_dirs(char category_path[], char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LE
     int item_count = 0;
 
     char command[MAX_PATH_LEN + 50];
-    snprintf(command, sizeof(command), "find %s -mindepth 1 -maxdepth 1 -type f", category_path);
+    snprintf(command, sizeof(command), "find %s -mindepth 1 -maxdepth 1 -type f ! -name '*.log'", category_path);
     fp = popen(command, "r");
 
     while (fgets(path, sizeof(path), fp) != NULL) {

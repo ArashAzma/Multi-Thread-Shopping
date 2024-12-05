@@ -15,8 +15,8 @@ typedef struct UserInfo {
     
 } userInfo;
 
-void print_user_data(userInfo user) {}
+void print_user_data(userInfo user);
 
-userInfo get_user_input() {}
+userInfo get_user_input();
 
 #endif

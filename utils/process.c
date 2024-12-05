@@ -1,21 +1,32 @@
+#include "../headers/process.h"
+#include "../headers/file.h"
+#include "../headers/user.h"
+#include "../headers/synch.h"
+
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <pthread.h>
-
-#include "../headers/process.h"
-#include "../headers/file.h"
-#include "../headers/user.h"
+#include <string.h>
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
 void* process_item(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
-    char line[100];
+    char line[100], log_path[MAX_PATH_LEN];
     // printf("PID: %d create thread for %s: %lu\n", getppid(), item_path, pthread_self());
+
+    enter_critical_section(&lock);
+
+    sprintf(log_path, "%s/%s_OrderID.log", args->category_path, args->user.userID);
+    FILE* log_file = fopen(log_path, "a");
+    fprintf(log_file, "thread with ID of %lu exploring item %s\n", pthread_self(), args->item_path);
+    fclose(log_file);
+    
+    exit_critical_section(&lock);
 
     FILE* file = fopen(args->item_path, "r");
     if (file == NULL) {
@@ -25,13 +36,8 @@ void* process_item(void* arg) {
     }
     fgets(line, sizeof(line), file);
 
-    char* token = strtok(line, " ");
-    char* item_name = token;
-
-    while (token != NULL) {
-        item_name = token;
-        token = strtok(NULL, " ");
-    }
+    char item_name[100];
+    strncpy(item_name, line + 6, sizeof(item_name) - 1);
 
     size_t len = strlen(item_name);
     if (len > 0 && item_name[len - 1] == '\n') {
@@ -49,11 +55,13 @@ void* process_item(void* arg) {
     return NULL;
 }
 
-void create_thread_for_item(char item_path[], userInfo user) {
+pthread_t create_thread_for_item(char item_path[], userInfo user) {
     ThreadArgs* args = (ThreadArgs*)malloc(sizeof(ThreadArgs));
     pthread_t thread;
-    char* path_copy = strdup(item_path); 
+    char* path_copy = strdup(item_path);
+    char* category_path = strdup(item_path); 
 
+    args->thread = thread;
     strcpy(args->item_path, item_path);
     strcpy(args->user.userID, user.userID);
     args->user.priceThreshold = user.priceThreshold;
@@ -61,6 +69,9 @@ void create_thread_for_item(char item_path[], userInfo user) {
         strcpy(args->user.orderList[i].name, user.orderList[i].name);
         args->user.orderList[i].count = user.orderList[i].count;
     }
+    char* last_slash = strrchr(category_path, '/');
+    *last_slash = '\0';
+    strcpy(args->category_path, category_path);
 
     if (pthread_create(&thread, NULL, process_item, args) != 0) {
         printf("Failed to create thread");
@@ -68,7 +79,7 @@ void create_thread_for_item(char item_path[], userInfo user) {
         return;
     }
 
-    pthread_join(thread, NULL);
+    return thread;
 }
 
 void create_process_for_category(char category_path[], userInfo user) {
@@ -76,13 +87,22 @@ void create_process_for_category(char category_path[], userInfo user) {
 
     if (pid == 0) {
         // printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
+
+        char log_path[MAX_PATH_LEN];
+        sprintf(log_path, "%s/%s_OrderID.log", category_path, user.userID);
+        FILE* log_file = fopen(log_path, "w");
+        fprintf(log_file, "PID of the process exploring in this category: %d\n", getpid());
+        fclose(log_file);
+
         char items[MAX_SUB_DIRS][MAX_PATH_LEN];
         int item_count = find_item_dirs(category_path, items);
 
-        for (int i = 0; i < item_count; i++) create_thread_for_item(items[i], user);
+        pthread_t threads[item_count];
+        for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
+        for (int i = 0; i < item_count; i++) pthread_join(threads[i], NULL);
 
         exit(0);
-    }else{
+    } else {
         wait(NULL);
     }
 }
@@ -102,7 +122,7 @@ void create_process_for_store(char store_path[], userInfo user) {
         for (int i = 0; i < sub_dir_count; i++) wait(NULL);
 
         exit(0);
-    }else{
+    } else {
         wait(NULL);
     }
 }

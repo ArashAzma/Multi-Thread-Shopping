@@ -1,8 +1,8 @@
+#include "../headers/user.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "../headers/user.h"
 
 #define ORDER_COUNT 3
 

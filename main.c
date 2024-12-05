@@ -6,6 +6,7 @@
 #include "headers/process.h"
 #include "headers/file.h"
 #include "headers/user.h"
+#include "headers/synch.h"
 
 int main() {
     while (1) {
