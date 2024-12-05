@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utils/process.h"
-#include "utils/file.h"
-#include "utils/user.h"
+#include "headers/process.h"
+#include "headers/file.h"
+#include "headers/user.h"
 
 int main() {
     while (1) {

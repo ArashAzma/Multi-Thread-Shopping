@@ -1,9 +1,8 @@
-#ifndef FILE_H
-#define FILE_H
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "../headers/file.h"
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
@@ -63,5 +62,3 @@ int find_store_dirs(char store_dirs[][MAX_PATH_LEN]) {
     pclose(fp);
     return store_dir_count;
 }
-
-#endif

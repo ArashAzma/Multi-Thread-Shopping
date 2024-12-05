@@ -1,22 +1,10 @@
-#ifndef USER_H
-#define USER_H
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "../headers/user.h"
+
 #define ORDER_COUNT 3
-
-typedef struct Order {
-    char name[50];
-    int count;
-} order;
-
-typedef struct UserInfo {
-    char userID[50];
-    order orderList[ORDER_COUNT];
-    int priceThreshold;
-} userInfo;
 
 void print_user_data(userInfo user) {
     printf("User ID: %s\n", user.userID);
@@ -53,5 +41,3 @@ userInfo get_user_input() {
 
     return user;
 }
-
-#endif

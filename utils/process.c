@@ -1,6 +1,3 @@
-#ifndef PROCESS_H
-#define PROCESS_H
-
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -8,16 +5,12 @@
 #include <sys/wait.h>
 #include <pthread.h>
 
-#include "file.h"
-#include "user.h"
+#include "../headers/process.h"
+#include "../headers/file.h"
+#include "../headers/user.h"
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
-
-typedef struct {
-    char item_path[MAX_PATH_LEN];
-    order orderList[ORDER_COUNT];
-} ThreadArgs;
 
 void* process_item(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
@@ -46,7 +39,7 @@ void* process_item(void* arg) {
     }
 
     for (int i = 0; i < ORDER_COUNT; i++) {
-        if (strcasecmp(args->orderList[i].name, item_name) == 0) {
+        if (strcasecmp(args->user.orderList[i].name, item_name) == 0) {
             printf("found %s in %s\n", item_name, args->item_path);
             break;
         }
@@ -56,15 +49,17 @@ void* process_item(void* arg) {
     return NULL;
 }
 
-void create_thread_for_item(char item_path[], order orderList[]) {
+void create_thread_for_item(char item_path[], userInfo user) {
     ThreadArgs* args = (ThreadArgs*)malloc(sizeof(ThreadArgs));
     pthread_t thread;
     char* path_copy = strdup(item_path); 
 
     strcpy(args->item_path, item_path);
+    strcpy(args->user.userID, user.userID);
+    args->user.priceThreshold = user.priceThreshold;
     for (int i = 0; i < ORDER_COUNT; i++) {
-        strcpy(args->orderList[i].name, orderList[i].name);
-        args->orderList[i].count = orderList[i].count;
+        strcpy(args->user.orderList[i].name, user.orderList[i].name);
+        args->user.orderList[i].count = user.orderList[i].count;
     }
 
     if (pthread_create(&thread, NULL, process_item, args) != 0) {
@@ -76,7 +71,7 @@ void create_thread_for_item(char item_path[], order orderList[]) {
     pthread_join(thread, NULL);
 }
 
-void create_process_for_category(char category_path[], order orderList[]) {
+void create_process_for_category(char category_path[], userInfo user) {
     pid_t pid = fork();
 
     if (pid == 0) {
@@ -84,7 +79,7 @@ void create_process_for_category(char category_path[], order orderList[]) {
         char items[MAX_SUB_DIRS][MAX_PATH_LEN];
         int item_count = find_item_dirs(category_path, items);
 
-        for (int i = 0; i < item_count; i++) create_thread_for_item(items[i], orderList);
+        for (int i = 0; i < item_count; i++) create_thread_for_item(items[i], user);
 
         exit(0);
     }else{
@@ -92,7 +87,7 @@ void create_process_for_category(char category_path[], order orderList[]) {
     }
 }
 
-void create_process_for_store(char store_path[], order orderList[]) {
+void create_process_for_store(char store_path[], userInfo user) {
     pid_t pid = fork();
 
     if (pid < 0) {
@@ -103,7 +98,7 @@ void create_process_for_store(char store_path[], order orderList[]) {
         char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN];
         int sub_dir_count = find_sub_dirs(store_path, sub_dirs);
 
-        for (int i = 0; i < sub_dir_count; i++) create_process_for_category(sub_dirs[i], orderList);
+        for (int i = 0; i < sub_dir_count; i++) create_process_for_category(sub_dirs[i], user);
         for (int i = 0; i < sub_dir_count; i++) wait(NULL);
 
         exit(0);
@@ -125,7 +120,7 @@ void create_process_for_user(userInfo user) {
     } else if (pid == 0) {
         // printf("%s create PID: %d\n", user.userID, getpid());
 
-        for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user.orderList);
+        for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user);
         for (int i = 0; i < store_dir_count; i++) wait(NULL);
 
         exit(0);
@@ -133,5 +128,3 @@ void create_process_for_user(userInfo user) {
         wait(NULL);
     }
 }
-
-#endif 
