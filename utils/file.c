@@ -7,6 +7,29 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
+void read_item_data(char item_path[], char item_name[], float *item_price, float *item_score, int *item_entity) {
+    FILE* item_file = fopen(item_path, "r");
+    if (item_file == NULL) {
+        perror("Failed to open file");
+        return;
+    }
+
+    char line[256];
+    while (fgets(line, sizeof(line), item_file)) {
+        if (strncmp(line, "Name:", 5) == 0) {
+            sscanf(line, "Name: %255s", item_name);
+        } else if (strncmp(line, "Price:", 6) == 0) {
+            sscanf(line, "Price: %f", item_price);
+        } else if (strncmp(line, "Score:", 6) == 0) {
+            sscanf(line, "Score: %f", item_score);
+        } else if (strncmp(line, "Entity:", 7) == 0) {
+            sscanf(line, "Entity: %d", item_entity);
+        }
+    }
+
+    fclose(item_file);
+}
+
 int find_item_dirs(char category_path[], char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]) {
     FILE *fp;
     char path[MAX_PATH_LEN];

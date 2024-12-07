@@ -10,14 +10,63 @@
 #include <sys/wait.h>
 #include <pthread.h>
 #include <string.h>
+#include <mqueue.h>
+#include <fcntl.h>
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
+#define MAX_MESSAGES 10
+#define MAX_MSG_SIZE 256
+#define QUEUE_PERMISSIONS 0660
+
+typedef struct {
+    char store_name[50];
+    char item_name[100];
+    int quantity;
+    float price;
+} OrderMessage;
+
+mqd_t order_queue;
+
+void setup_message_queue() {
+    struct mq_attr attr;
+    attr.mq_flags = 0;
+    attr.mq_maxmsg = MAX_MESSAGES;
+    attr.mq_msgsize = sizeof(OrderMessage);
+    attr.mq_curmsgs = 0;
+
+    order_queue = mq_open("/order_processing_queue", 
+                          O_CREAT | O_RDWR, 
+                          QUEUE_PERMISSIONS, 
+                          &attr);
+    
+    if (order_queue == (mqd_t)-1) {
+        perror("mq_open failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void send_order_to_queue(const char* store_name, const char* item_name, int quantity, float price) {
+    OrderMessage msg;
+    
+    strncpy(msg.store_name, store_name, sizeof(msg.store_name) - 1);
+    strncpy(msg.item_name, item_name, sizeof(msg.item_name) - 1);
+    msg.quantity = quantity;
+    msg.price = price;
+
+    if (mq_send(order_queue, (char*)&msg, sizeof(OrderMessage), 0) == -1) perror("mq_send failed");
+}
+
+// Cleanup function (call this when you're done)
+void cleanup_message_queue() {
+    mq_close(order_queue);
+    mq_unlink("/order_processing_queue");
+}
 
 void* process_item(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
     char line[100], log_path[MAX_PATH_LEN];
-    // printf("PID: %d create thread for %s: %lu\n", getppid(), item_path, pthread_self());
+    // printf("PID: %d create thread for %s: TID:%lu\n", getppid(), args->item_path, pthread_self());
 
     enter_critical_section(&lock);
 
@@ -37,16 +86,15 @@ void* process_item(void* arg) {
     fgets(line, sizeof(line), file);
 
     char item_name[100];
-    strncpy(item_name, line + 6, sizeof(item_name) - 1);
-
-    size_t len = strlen(item_name);
-    if (len > 0 && item_name[len - 1] == '\n') {
-        item_name[len - 1] = '\0';
-    }
-
+    float item_price;
+    float item_score;
+    int item_entity;
+    read_item_data(args->item_path, item_name, &item_price, &item_score, &item_entity);
     for (int i = 0; i < ORDER_COUNT; i++) {
         if (strcasecmp(args->user.orderList[i].name, item_name) == 0) {
+
             printf("found %s in %s\n", item_name, args->item_path);
+            send_order_to_queue(args->item_path, args->user.orderList[i].name, args->user.orderList[i].count, item_price);
             break;
         }
     }
@@ -127,6 +175,54 @@ void create_process_for_store(char store_path[], userInfo user) {
     }
 }
 
+void* handle_orders(void *args) {
+    ThreadArgs* thread_args = (ThreadArgs*)args;
+    
+    // printf("PID: %d create thread for Orders TID: %lu\n", getppid(), pthread_self());
+
+    OrderMessage received_msg;
+    unsigned int priority;
+
+    while (1) {
+        ssize_t bytes_read = mq_receive(order_queue, 
+                                        (char*)&received_msg, 
+                                        sizeof(OrderMessage), 
+                                        &priority);
+        
+        if (bytes_read == -1) {
+            perror("mq_receive failed");
+            break;
+        }
+
+        printf("Received order: Item %s, Quantity %d, from store %s, Price %f\n", 
+               received_msg.item_name, 
+               received_msg.quantity, 
+               received_msg.store_name,
+               received_msg.price
+               );
+
+    }
+
+    return NULL;
+}
+
+void create_thread_for_orders(userInfo user) {
+    setup_message_queue();
+
+    pthread_t thread;
+    ThreadArgs* args = malloc(sizeof(ThreadArgs));
+    
+    memcpy(&args->user, &user, sizeof(userInfo));
+
+    if (pthread_create(&thread, NULL, handle_orders, args) != 0) {
+        printf("Failed to create thread");
+        free(args);
+        return;
+    }
+
+    pthread_detach(thread);
+}
+
 void create_process_for_user(userInfo user) {
     char store_dirs[3][256];
     char sub_dirs[100][256];
@@ -140,6 +236,7 @@ void create_process_for_user(userInfo user) {
     } else if (pid == 0) {
         // printf("%s create PID: %d\n", user.userID, getpid());
 
+        create_thread_for_orders(user);
         for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user);
         for (int i = 0; i < store_dir_count; i++) wait(NULL);
 
