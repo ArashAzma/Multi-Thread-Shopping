@@ -23,12 +23,13 @@ typedef struct {
     float Score;
     int Entity;
     time_t last_modified;
+    char Category[50];
 } Item;
 
 typedef struct {
     char userID[50];
-    Item founded_items_in_category[3][100];
-    int founded_items_in_category_count[3];
+    Item founded_items_in_category[100];
+    int founded_items_in_category_count;
 } UserSearchResults;
 
 UserSearchResults user_search_results[MAX_USERS];
@@ -56,11 +57,12 @@ int find_user_index(const char* userID, int add_user) {
     return new_index;
 }
 
-void add_item_to_category(UserSearchResults* user, int category_index, const Item* item) {
+void add_item_to_category(UserSearchResults* user, const Item* item, char Category[]) {
     enter_critical_section(&lock);
-    int count = user->founded_items_in_category_count[category_index];
-    user->founded_items_in_category[category_index][count] = *item;
-    user->founded_items_in_category_count[category_index]++;
+    int count = user->founded_items_in_category_count;
+    user->founded_items_in_category[count] = *item;
+    strcpy(user->founded_items_in_category[count].Category, Category);
+    user->founded_items_in_category_count++;
     exit_critical_section(&lock);
 }
 
@@ -99,6 +101,9 @@ void* process_item(void* arg) {
     int user_index = find_user_index(args->user.userID, 1);
     UserSearchResults* user = &user_search_results[user_index];
 
+    char category[100];
+    get_category_name(args->category_path, category);
+
     for (int i = 0; i < ORDER_COUNT; i++) {
         if (strcasecmp(args->user.orderList[i].name, item_name) == 0) {
             Item item = {0};
@@ -107,14 +112,7 @@ void* process_item(void* arg) {
             item.Score = item_score;
             item.Entity = item_entity;
             item.last_modified = time(NULL);
-
-            if (strcmp(store_name, "Store1") == 0) {
-                add_item_to_category(user, 0, &item);
-            } else if (strcmp(store_name, "Store2") == 0) {
-                add_item_to_category(user, 1, &item);
-            } else if (strcmp(store_name, "Store3") == 0) {
-                add_item_to_category(user, 2, &item);
-            }
+            add_item_to_category(user, &item, category);
             break;
         }
     }
@@ -170,11 +168,15 @@ void create_process_for_category(char category_path[], userInfo user) {
 
         int user_index = find_user_index(user.userID, 0);
 
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < user_search_results[user_index].founded_items_in_category_count[i]; j++) {
-                printf("%d %d %d Name: %s, Price: %.2f, Score: %.2f, Entity: %d\n", user_index, i, getpid(), user_search_results[user_index].founded_items_in_category[i][j].Name, user_search_results[user_index].founded_items_in_category[i][j].Price, user_search_results[user_index].founded_items_in_category[i][j].Score, user_search_results[user_index].founded_items_in_category[i][j].Entity);
+            for (int j = 0; j < user_search_results[user_index].founded_items_in_category_count; j++) {
+                printf("%d %d %d Name: %s, Price: %.2f, Score: %.2f, Entity: %d Category: %s\n", user_index, j, getpid(), 
+                    user_search_results[user_index].founded_items_in_category[j].Name,
+                    user_search_results[user_index].founded_items_in_category[j].Price, 
+                    user_search_results[user_index].founded_items_in_category[j].Score, 
+                    user_search_results[user_index].founded_items_in_category[j].Entity,
+                    user_search_results[user_index].founded_items_in_category[j].Category
+                );
             }
-        }
 
         exit(0);
     } else {
