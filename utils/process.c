@@ -11,11 +11,15 @@
 #include <pthread.h>
 #include <string.h>
 #include <mqueue.h>
+#include <sys/ipc.h>
 #include <fcntl.h>
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 #define MAX_USERS 10
+
+#define MQ_MAX_MESSAGES 10
+#define MQ_MAX_MSG_SIZE sizeof(UserSearchResults)
 
 typedef struct {
     char Name[100];
@@ -24,6 +28,7 @@ typedef struct {
     int Entity;
     time_t last_modified;
     char Category[50];
+    char Store[100];
 } Item;
 
 typedef struct {
@@ -35,10 +40,59 @@ typedef struct {
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
 
+#define QUEUE_NAME "/store_category_queue"
+#define MAX_MSG_SIZE 1024
+#define MAX_MESSAGES 10
+
 typedef struct {
-    char store_name[50];
-    Item orders[100];
-} ShoppingList;
+    char userID[10];
+    char itemName[20];
+    float itemPrice;
+    float itemScore;
+    int itemEntity;
+    char category[20];
+    char store[20];
+} Message;
+
+mqd_t init_message_queue() {
+    struct mq_attr attr;
+    attr.mq_flags = 0;
+    attr.mq_maxmsg = MAX_MESSAGES;
+    attr.mq_msgsize = sizeof(Message);
+    attr.mq_curmsgs = 0;
+
+    mqd_t mq = mq_open(QUEUE_NAME, O_CREAT | O_RDWR, 0644, &attr);
+    if (mq == (mqd_t)-1) {
+        perror("Failed to create message queue");
+        exit(EXIT_FAILURE);
+    }
+    return mq;
+}
+
+void send_message(mqd_t mq, UserSearchResults* user, int user_index) {
+    for (int j = 0; j < user->founded_items_in_category_count; j++) {
+        Message msg;
+        strcpy(msg.userID, user->userID);
+        strcpy(msg.itemName, user->founded_items_in_category[j].Name);
+        msg.itemPrice = user->founded_items_in_category[j].Price;
+        msg.itemScore = user->founded_items_in_category[j].Score;
+        msg.itemEntity = user->founded_items_in_category[j].Entity;
+        strcpy(msg.category, user->founded_items_in_category[j].Category);
+        strcpy(msg.store, user->founded_items_in_category[j].Store);
+
+        if (mq_send(mq, (const char*)&msg, sizeof(Message), 0) == -1) {
+            perror("Failed to send message");
+        }
+    }
+}
+
+void receive_messages(mqd_t mq) {
+    Message msg;
+    while (mq_receive(mq, (char*)&msg, sizeof(Message), NULL) != -1) {
+        printf("User: %s, Store: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
+            msg.userID, msg.store, msg.itemName, msg.itemPrice, msg.itemScore, msg.itemEntity, msg.category);
+    }
+}
 
 int find_user_index(const char* userID, int add_user) {
     enter_critical_section(&lock);
@@ -112,6 +166,7 @@ void* process_item(void* arg) {
             item.Score = item_score;
             item.Entity = item_entity;
             item.last_modified = time(NULL);
+            strcpy(item.Store, store_name);
             add_item_to_category(user, &item, category);
             break;
         }
@@ -147,8 +202,7 @@ pthread_t create_thread_for_item(char item_path[], userInfo user) {
     return thread;
 }
 
-void create_process_for_category(char category_path[], userInfo user) {
-    pid_t pid = fork();
+void create_process_for_category(char category_path[], userInfo user) {    pid_t pid = fork();
 
     if (pid == 0) {
         // printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
@@ -168,17 +222,24 @@ void create_process_for_category(char category_path[], userInfo user) {
 
         int user_index = find_user_index(user.userID, 0);
 
-            for (int j = 0; j < user_search_results[user_index].founded_items_in_category_count; j++) {
-                printf("%d %d %d Name: %s, Price: %.2f, Score: %.2f, Entity: %d Category: %s\n", user_index, j, getpid(), 
-                    user_search_results[user_index].founded_items_in_category[j].Name,
-                    user_search_results[user_index].founded_items_in_category[j].Price, 
-                    user_search_results[user_index].founded_items_in_category[j].Score, 
-                    user_search_results[user_index].founded_items_in_category[j].Entity,
-                    user_search_results[user_index].founded_items_in_category[j].Category
-                );
-            }
+        // for (int j = 0; j < user_search_results[user_index].founded_items_in_category_count; j++) {
+        //     printf("%d %d %d Name: %s, Price: %.2f, Score: %.2f, Entity: %d Category: %s\n", user_index, j, getpid(), 
+        //         user_search_results[user_index].founded_items_in_category[j].Name,
+        //         user_search_results[user_index].founded_items_in_category[j].Price, 
+        //         user_search_results[user_index].founded_items_in_category[j].Score, 
+        //         user_search_results[user_index].founded_items_in_category[j].Entity,
+        //         user_search_results[user_index].founded_items_in_category[j].Category
+        //     );
+        // }
+        mqd_t mq = mq_open(QUEUE_NAME, O_WRONLY);
+        if (mq == (mqd_t)-1) {
+            perror("Failed to open message queue in category process");
+            exit(EXIT_FAILURE);
+        }
+        send_message(mq, &user_search_results[user_index], user_index);
 
         exit(0);
+        // mq_close(mq);
     } else {
         wait(NULL);
     }
@@ -186,12 +247,11 @@ void create_process_for_category(char category_path[], userInfo user) {
 
 void create_process_for_store(char store_path[], userInfo user) {
     pid_t pid = fork();
-
     if (pid < 0) {
         perror("Fork failed");
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
-        // printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
+        printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
         char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN];
         int sub_dir_count = find_sub_dirs(store_path, sub_dirs);
 
@@ -207,7 +267,7 @@ void create_process_for_store(char store_path[], userInfo user) {
 void* handle_orders(void *args) {
     ThreadArgs* thread_args = (ThreadArgs*)args;
     
-    ShoppingList received_list;
+    // ShoppingList received_list;
     unsigned int priority;
 
     return NULL;
@@ -232,6 +292,7 @@ void create_process_for_user(userInfo user) {
     char store_dirs[3][256];
     char sub_dirs[100][256];
     int store_dir_count = find_store_dirs(store_dirs);
+    init_message_queue();
     
     pid_t pid = fork();
 
@@ -240,13 +301,21 @@ void create_process_for_user(userInfo user) {
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
         // printf("%s create PID: %d\n", user.userID, getpid());
-
         create_thread_for_orders(user);
         for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user);
         for (int i = 0; i < store_dir_count; i++) wait(NULL);
 
+        mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY);
+        if (mq == (mqd_t)-1) {
+            perror("Failed to open message queue in store process");
+            exit(EXIT_FAILURE);
+        }
+        receive_messages(mq);
+        mq_close(mq);
+
         exit(0);
     } else {
         wait(NULL);
+        mq_unlink(QUEUE_NAME);
     }
 }
