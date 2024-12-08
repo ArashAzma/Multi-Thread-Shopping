@@ -4,6 +4,8 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
+void get_store_name(char path[], char store_name[]);
+
 int find_item_dirs(char category_path[], char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]);
 
 int find_sub_dirs(char store_path[], char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN]);

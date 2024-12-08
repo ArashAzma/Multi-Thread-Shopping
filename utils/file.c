@@ -7,6 +7,24 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
+void get_store_name(char path[], char store_name[]) {
+    // DatasetTest/Store3/Beauty
+    char path_copy[MAX_PATH_LEN];
+    strncpy(path_copy, path, MAX_PATH_LEN);
+    path_copy[MAX_PATH_LEN - 1] = '\0';
+
+    char *token = strtok(path_copy, "/");
+    while (token != NULL) {
+        if (strncmp(token, "Store", 5) == 0) {
+            strcpy(store_name, token);
+            return;
+        }
+        token = strtok(NULL, "/");
+    }
+    strcpy(store_name, "Unknown");
+}
+
+
 void read_item_data(char item_path[], char item_name[], float *item_price, float *item_score, int *item_entity) {
     FILE* item_file = fopen(item_path, "r");
     if (item_file == NULL) {

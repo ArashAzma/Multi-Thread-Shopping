@@ -15,52 +15,53 @@
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
-#define MAX_MESSAGES 10
-#define MAX_MSG_SIZE 256
-#define QUEUE_PERMISSIONS 0660
+#define MAX_USERS 10
+
+typedef struct {
+    char Name[100];
+    float Price;
+    float Score;
+    int Entity;
+    time_t last_modified;
+} Item;
+
+typedef struct {
+    char userID[50];
+    Item founded_items_in_category[3][100];
+    int founded_items_in_category_count[3];
+} UserSearchResults;
+
+UserSearchResults user_search_results[MAX_USERS];
+int user_search_results_count = 0;
 
 typedef struct {
     char store_name[50];
-    char item_name[100];
-    int quantity;
-    float price;
-} OrderMessage;
+    Item orders[100];
+} ShoppingList;
 
-mqd_t order_queue;
-
-void setup_message_queue() {
-    struct mq_attr attr;
-    attr.mq_flags = 0;
-    attr.mq_maxmsg = MAX_MESSAGES;
-    attr.mq_msgsize = sizeof(OrderMessage);
-    attr.mq_curmsgs = 0;
-
-    order_queue = mq_open("/order_processing_queue", 
-                          O_CREAT | O_RDWR, 
-                          QUEUE_PERMISSIONS, 
-                          &attr);
-    
-    if (order_queue == (mqd_t)-1) {
-        perror("mq_open failed");
-        exit(EXIT_FAILURE);
+int find_user_index(const char* userID, int add_user) {
+    enter_critical_section(&lock);
+    for (int i = 0; i < user_search_results_count; i++) {
+        if (strcmp(user_search_results[i].userID, userID) == 0) {
+            exit_critical_section(&lock);
+            return i;
+        }
     }
+    int new_index = -1;
+    if (add_user){
+        strcpy(user_search_results[user_search_results_count].userID, userID);
+        new_index = user_search_results_count++;
+    }
+    exit_critical_section(&lock);
+    return new_index;
 }
 
-void send_order_to_queue(const char* store_name, const char* item_name, int quantity, float price) {
-    OrderMessage msg;
-    
-    strncpy(msg.store_name, store_name, sizeof(msg.store_name) - 1);
-    strncpy(msg.item_name, item_name, sizeof(msg.item_name) - 1);
-    msg.quantity = quantity;
-    msg.price = price;
-
-    if (mq_send(order_queue, (char*)&msg, sizeof(OrderMessage), 0) == -1) perror("mq_send failed");
-}
-
-// Cleanup function (call this when you're done)
-void cleanup_message_queue() {
-    mq_close(order_queue);
-    mq_unlink("/order_processing_queue");
+void add_item_to_category(UserSearchResults* user, int category_index, const Item* item) {
+    enter_critical_section(&lock);
+    int count = user->founded_items_in_category_count[category_index];
+    user->founded_items_in_category[category_index][count] = *item;
+    user->founded_items_in_category_count[category_index]++;
+    exit_critical_section(&lock);
 }
 
 void* process_item(void* arg) {
@@ -69,12 +70,14 @@ void* process_item(void* arg) {
     // printf("PID: %d create thread for %s: TID:%lu\n", getppid(), args->item_path, pthread_self());
 
     enter_critical_section(&lock);
-
     sprintf(log_path, "%s/%s_OrderID.log", args->category_path, args->user.userID);
+    exit_critical_section(&lock);
+
     FILE* log_file = fopen(log_path, "a");
+
+    enter_critical_section(&lock);
     fprintf(log_file, "thread with ID of %lu exploring item %s\n", pthread_self(), args->item_path);
     fclose(log_file);
-    
     exit_critical_section(&lock);
 
     FILE* file = fopen(args->item_path, "r");
@@ -84,21 +87,37 @@ void* process_item(void* arg) {
         return NULL;
     }
     fgets(line, sizeof(line), file);
+    char store_name[100];
+    get_store_name(args->item_path, store_name);
 
     char item_name[100];
     float item_price;
     float item_score;
     int item_entity;
     read_item_data(args->item_path, item_name, &item_price, &item_score, &item_entity);
+
+    int user_index = find_user_index(args->user.userID, 1);
+    UserSearchResults* user = &user_search_results[user_index];
+
     for (int i = 0; i < ORDER_COUNT; i++) {
         if (strcasecmp(args->user.orderList[i].name, item_name) == 0) {
+            Item item = {0};
+            strcpy(item.Name, item_name);
+            item.Price = item_price;
+            item.Score = item_score;
+            item.Entity = item_entity;
+            item.last_modified = time(NULL);
 
-            printf("found %s in %s\n", item_name, args->item_path);
-            send_order_to_queue(args->item_path, args->user.orderList[i].name, args->user.orderList[i].count, item_price);
+            if (strcmp(store_name, "Store1") == 0) {
+                add_item_to_category(user, 0, &item);
+            } else if (strcmp(store_name, "Store2") == 0) {
+                add_item_to_category(user, 1, &item);
+            } else if (strcmp(store_name, "Store3") == 0) {
+                add_item_to_category(user, 2, &item);
+            }
             break;
         }
     }
-
     free(args);
     return NULL;
 }
@@ -149,6 +168,14 @@ void create_process_for_category(char category_path[], userInfo user) {
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
         for (int i = 0; i < item_count; i++) pthread_join(threads[i], NULL);
 
+        int user_index = find_user_index(user.userID, 0);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < user_search_results[user_index].founded_items_in_category_count[i]; j++) {
+                printf("%d %d %d Name: %s, Price: %.2f, Score: %.2f, Entity: %d\n", user_index, i, getpid(), user_search_results[user_index].founded_items_in_category[i][j].Name, user_search_results[user_index].founded_items_in_category[i][j].Price, user_search_results[user_index].founded_items_in_category[i][j].Score, user_search_results[user_index].founded_items_in_category[i][j].Entity);
+            }
+        }
+
         exit(0);
     } else {
         wait(NULL);
@@ -178,37 +205,13 @@ void create_process_for_store(char store_path[], userInfo user) {
 void* handle_orders(void *args) {
     ThreadArgs* thread_args = (ThreadArgs*)args;
     
-    // printf("PID: %d create thread for Orders TID: %lu\n", getppid(), pthread_self());
-
-    OrderMessage received_msg;
+    ShoppingList received_list;
     unsigned int priority;
-
-    while (1) {
-        ssize_t bytes_read = mq_receive(order_queue, 
-                                        (char*)&received_msg, 
-                                        sizeof(OrderMessage), 
-                                        &priority);
-        
-        if (bytes_read == -1) {
-            perror("mq_receive failed");
-            break;
-        }
-
-        printf("Received order: Item %s, Quantity %d, from store %s, Price %f\n", 
-               received_msg.item_name, 
-               received_msg.quantity, 
-               received_msg.store_name,
-               received_msg.price
-               );
-
-    }
 
     return NULL;
 }
 
 void create_thread_for_orders(userInfo user) {
-    setup_message_queue();
-
     pthread_t thread;
     ThreadArgs* args = malloc(sizeof(ThreadArgs));
     

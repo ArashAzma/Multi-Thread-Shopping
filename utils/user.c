@@ -20,17 +20,29 @@ userInfo get_user_input() {
     char priceThresholdInput[10];
     userInfo user;
 
-    printf("Username: ");
-    scanf("%s", userID);
+    strcpy(userID, "user1");
+    strcpy(orderList[0].name, "Jeans");
+    orderList[0].count = 1;
+    
+    strcpy(orderList[1].name, "T-shirt");
+    orderList[1].count = 2;
 
-    printf("OrderList: \n");
-    for (int i = 0; i < ORDER_COUNT; i++) scanf("%s %d", orderList[i].name, &orderList[i].count);
+    strcpy(orderList[2].name, "Foundation");
+    orderList[2].count = 2;
+    
+    priceThreshold = 100;
 
-    printf("Price threshold: \n");
-    getchar();
-    fgets(priceThresholdInput, sizeof(priceThresholdInput), stdin);
-    if (priceThresholdInput[0] == '\n') priceThreshold = -1;
-    else priceThreshold = atoi(priceThresholdInput);
+    // printf("Username: ");
+    // scanf("%s", userID);
+
+    // printf("OrderList: \n");
+    // for (int i = 0; i < ORDER_COUNT; i++) scanf("%s %d", orderList[i].name, &orderList[i].count);
+
+    // printf("Price threshold: \n");
+    // getchar();
+    // fgets(priceThresholdInput, sizeof(priceThresholdInput), stdin);
+    // if (priceThresholdInput[0] == '\n') priceThreshold = -1;
+    // else priceThreshold = atoi(priceThresholdInput);
 
     strcpy(user.userID, userID);
     for (int i = 0; i < ORDER_COUNT; i++) {
