@@ -4,6 +4,7 @@
 #include "user.h"
 
 #include <pthread.h>
+#include <stdatomic.h>
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
@@ -50,6 +51,7 @@ typedef struct {
     pthread_t thread;
     userInfo user;
     ShoppingList shopping_list[3];
+    atomic_int* lock;
 } OrderThreadArgs;
 
 void* process_item(void* arg);

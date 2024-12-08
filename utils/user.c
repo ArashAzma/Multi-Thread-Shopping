@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ORDER_COUNT 3
+#define ORDER_COUNT 2
 
 void print_user_data(userInfo user) {
     printf("User ID: %s\n", user.userID);
@@ -27,8 +27,8 @@ userInfo get_user_input() {
     strcpy(orderList[1].name, "T-shirt");
     orderList[1].count = 2;
 
-    strcpy(orderList[2].name, "Foundation");
-    orderList[2].count = 2;
+    // strcpy(orderList[2].name, "Foundation");
+    // orderList[2].count = 2;
     
     priceThreshold = 100;
 

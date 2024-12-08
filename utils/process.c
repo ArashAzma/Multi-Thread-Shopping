@@ -70,7 +70,7 @@ void receive_messages(mqd_t mq, ShoppingList shopping_list[]) {
 
     // FIX LATER
     int c=0;
-    while (c<9) {
+    while (c<6) {
         if (mq_receive(mq, (char*)&msg, sizeof(Message), NULL) == -1) break;
 
         int index = -1;
@@ -254,7 +254,15 @@ void create_process_for_store(char store_path[], userInfo user) {
 
 void* handle_orders(void *args) {
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
-
+    pthread_detach(pthread_self());
+    while (1) {
+        enter_critical_section(order_args->lock);
+        if (order_args->shopping_list != NULL && strcmp(order_args->shopping_list, "") != 0) {
+            exit_critical_section(order_args->lock);
+            break;
+        }
+        exit_critical_section(order_args->lock);
+    }
 
     for (int i = 0; i < 3; i++) {
         printf("Store%d %d\n", i+1, order_args->shopping_list[i].message_count);
@@ -266,7 +274,6 @@ void* handle_orders(void *args) {
     }
 
     free(order_args);
-    // pthread_detach(pthread_self());
     return NULL;
 }
 
@@ -298,8 +305,11 @@ void create_process_for_user(userInfo user) {
 
     } else if (pid == 0) {
         OrderThreadArgs* args = malloc(sizeof(OrderThreadArgs));
+        atomic_int lock = 0;
+        args->lock = &lock;
         // printf("%s create PID: %d\n", user.userID, getpid());
 
+        pthread_t orderThread = create_thread_for_orders(user, args);
         for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user);
         for (int i = 0; i < store_dir_count; i++) wait(NULL);
 
@@ -312,14 +322,19 @@ void create_process_for_user(userInfo user) {
         ShoppingList shopping_list[MAX_STORES];
         receive_messages(mq, shopping_list);
 
-        for (int i = 0; i < MAX_STORES; i++) {
-            printf("Store %d message count: %d\n", i+1, shopping_list[i].message_count);
-        }
-        memcpy(args->shopping_list, shopping_list, sizeof(shopping_list));
-        
-        pthread_t orderThread = create_thread_for_orders(user, args);
-        pthread_join(orderThread, NULL);
+        // for (int i = 0; i < 3; i++) {
+        //     printf("Store%d %d\n", i+1, shopping_list[i].message_count);
+        //     for (int j = 0; j < shopping_list[i].message_count; j++) {
+        //         printf("User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
+        //             shopping_list[i].messages[j].userID, shopping_list[i].messages[j].itemName, shopping_list[i].messages[j].itemPrice,
+        //             shopping_list[i].messages[j].itemScore, shopping_list[i].messages[j].itemEntity, shopping_list[i].messages[j].category);
+        //     }
+        // }   
 
+        enter_critical_section(&lock);
+        memcpy(args->shopping_list, shopping_list, sizeof(shopping_list));
+        exit_critical_section(&lock);        
+        
         mq_close(mq);
 
         exit(0);
