@@ -27,40 +27,8 @@
 
 #define MAX_STORES 3
 
-typedef struct {
-    char Name[100];
-    float Price;
-    float Score;
-    int Entity;
-    time_t last_modified;
-    char Category[20];
-    char Store[20];
-} Item;
-
-typedef struct {
-    char userID[50];
-    Item founded_items_in_category[100];
-    int founded_items_in_category_count;
-} UserSearchResults;
-
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
-
-
-typedef struct {
-    char userID[10];
-    char itemName[20];
-    float itemPrice;
-    float itemScore;
-    int itemEntity;
-    char category[20];
-    char store[20];
-} Message;
-
-typedef struct {
-    Message messages[10];
-    int message_count;
-} ShoppingList;
 
 mqd_t init_message_queue() {
     struct mq_attr attr;
@@ -271,7 +239,7 @@ void create_process_for_store(char store_path[], userInfo user) {
         perror("Fork failed");
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
-        printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
+        // printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
         char sub_dirs[MAX_SUB_DIRS][MAX_PATH_LEN];
         int sub_dir_count = find_sub_dirs(store_path, sub_dirs);
 
@@ -285,27 +253,34 @@ void create_process_for_store(char store_path[], userInfo user) {
 }
 
 void* handle_orders(void *args) {
-    ThreadArgs* thread_args = (ThreadArgs*)args;
-    
-    // ShoppingList received_list;
-    unsigned int priority;
+    OrderThreadArgs* order_args = (OrderThreadArgs*)args;
 
+
+    for (int i = 0; i < 3; i++) {
+        printf("Store%d %d\n", i+1, order_args->shopping_list[i].message_count);
+        for (int j = 0; j < order_args->shopping_list[i].message_count; j++) {
+            printf("User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
+                order_args->shopping_list[i].messages[j].userID, order_args->shopping_list[i].messages[j].itemName, order_args->shopping_list[i].messages[j].itemPrice,
+                order_args->shopping_list[i].messages[j].itemScore, order_args->shopping_list[i].messages[j].itemEntity, order_args->shopping_list[i].messages[j].category);
+        }
+    }
+
+    free(order_args);
+    // pthread_detach(pthread_self());
     return NULL;
 }
 
-void create_thread_for_orders(userInfo user) {
+pthread_t create_thread_for_orders(userInfo user, OrderThreadArgs* args) {
     pthread_t thread;
-    ThreadArgs* args = malloc(sizeof(ThreadArgs));
     
-    memcpy(&args->user, &user, sizeof(userInfo));
+    args->user = user;
 
     if (pthread_create(&thread, NULL, handle_orders, args) != 0) {
-        printf("Failed to create thread");
+        perror("Failed to create thread");
         free(args);
-        return;
+        exit(EXIT_FAILURE);
     }
-
-    pthread_detach(thread);
+    return thread;
 }
 
 void create_process_for_user(userInfo user) {
@@ -322,8 +297,9 @@ void create_process_for_user(userInfo user) {
         exit(EXIT_FAILURE);
 
     } else if (pid == 0) {
+        OrderThreadArgs* args = malloc(sizeof(OrderThreadArgs));
         // printf("%s create PID: %d\n", user.userID, getpid());
-        create_thread_for_orders(user);
+
         for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user);
         for (int i = 0; i < store_dir_count; i++) wait(NULL);
 
@@ -332,16 +308,18 @@ void create_process_for_user(userInfo user) {
             perror("Failed to open message queue in store process");
             exit(EXIT_FAILURE);
         }
+
         ShoppingList shopping_list[MAX_STORES];
         receive_messages(mq, shopping_list);
-        for (int i = 0; i < 3; i++) {
-            printf("Store%d\n", i+1);
-            for (int j = 0; j < shopping_list[i].message_count; j++) {
-                printf("User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
-                    shopping_list[i].messages[j].userID, shopping_list[i].messages[j].itemName, shopping_list[i].messages[j].itemPrice,
-                    shopping_list[i].messages[j].itemScore, shopping_list[i].messages[j].itemEntity, shopping_list[i].messages[j].category);
-            }
+
+        for (int i = 0; i < MAX_STORES; i++) {
+            printf("Store %d message count: %d\n", i+1, shopping_list[i].message_count);
         }
+        memcpy(args->shopping_list, shopping_list, sizeof(shopping_list));
+        
+        pthread_t orderThread = create_thread_for_orders(user, args);
+        pthread_join(orderThread, NULL);
+
         mq_close(mq);
 
         exit(0);
