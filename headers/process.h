@@ -13,7 +13,7 @@ typedef struct {
     pthread_t thread;
     char category_path[MAX_PATH_LEN];
     char item_path[MAX_PATH_LEN];
-    userInfo user;
+    userInfo* user;
 } ThreadArgs;
 
 typedef struct {
@@ -53,7 +53,7 @@ typedef struct {
 
 typedef struct {
     pthread_t thread;
-    userInfo user;
+    userInfo* user;
     ShoppingList shopping_list[3];
     atomic_int* lock;
     int best_shopping_list_indexes[3];
@@ -61,12 +61,12 @@ typedef struct {
 
 void* process_item(void* arg);
 
-pthread_t create_thread_for_item(char item_path[], userInfo user);
+pthread_t create_thread_for_item(char item_path[], userInfo* user);
 
-void create_process_for_category(char category_path[], userInfo user);
+void create_process_for_category(char category_path[], userInfo* user);
 
-void create_process_for_store(char store_path[], userInfo user);
+void create_process_for_store(char store_path[], userInfo* user);
 
-void create_process_for_user(userInfo user);
+void create_process_for_user(userInfo* user);
 
 #endif

@@ -22,6 +22,6 @@ typedef struct Users {
 
 void print_user_data(userInfo user);
 
-userInfo get_user_input(users* users_list);
+userInfo* get_user_input(users* users_list);
 
 #endif

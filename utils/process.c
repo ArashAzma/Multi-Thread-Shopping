@@ -125,11 +125,12 @@ void add_item_to_category(UserSearchResults* user, const Item* item, char Catego
 
 void* process_item(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
+
     char line[100], log_path[MAX_PATH_LEN];
     // printf("PID: %d create thread for %s: TID:%lu\n", getppid(), args->item_path, pthread_self());
 
     enter_critical_section(&lock);
-    sprintf(log_path, "%s/%s_OrderID.log", args->category_path, args->user.userID);
+    sprintf(log_path, "%s/%s_OrderID.log", args->category_path, args->user->userID);
     FILE* log_file = fopen(log_path, "a");
     fprintf(log_file, "thread with ID of %lu exploring item %s\n", pthread_self(), args->item_path);
     fclose(log_file);
@@ -151,14 +152,14 @@ void* process_item(void* arg) {
     int item_entity;
     read_item_data(args->item_path, item_name, &item_price, &item_score, &item_entity);
 
-    int user_index = find_user_index(args->user.userID, 1);
+    int user_index = find_user_index(args->user->userID, 1);
     UserSearchResults* user = &user_search_results[user_index];
 
     char category[100];
     get_category_name(args->category_path, category);
 
     for (int i = 0; i < ORDER_COUNT; i++) {
-        if (strcasecmp(args->user.orderList[i].name, item_name) == 0) {
+        if (strcasecmp(args->user->orderList[i].name, item_name) == 0) {
             Item item = {0};
             strcpy(item.Name, item_name);
             item.Price = item_price;
@@ -175,7 +176,7 @@ void* process_item(void* arg) {
     return NULL;
 }
 
-pthread_t create_thread_for_item(char item_path[], userInfo user) {
+pthread_t create_thread_for_item(char item_path[], userInfo* user) {
     ThreadArgs* args = (ThreadArgs*)malloc(sizeof(ThreadArgs));
     pthread_t thread;
     char* path_copy = strdup(item_path);
@@ -183,12 +184,13 @@ pthread_t create_thread_for_item(char item_path[], userInfo user) {
 
     args->thread = thread;
     strcpy(args->item_path, item_path);
-    strcpy(args->user.userID, user.userID);
-    args->user.priceThreshold = user.priceThreshold;
-    for (int i = 0; i < ORDER_COUNT; i++) {
-        strcpy(args->user.orderList[i].name, user.orderList[i].name);
-        args->user.orderList[i].count = user.orderList[i].count;
-    }
+    args->user = user;
+    // strcpy(args->user->userID, user->userID);
+    // args->user->priceThreshold = user->priceThreshold;
+    // for (int i = 0; i < ORDER_COUNT; i++) {
+    //     strcpy(args->user->orderList[i].name, user->orderList[i].name);
+    //     args->user->orderList[i].count = user->orderList[i].count;
+    // }
     char* last_slash = strrchr(category_path, '/');
     *last_slash = '\0';
     strcpy(args->category_path, category_path);
@@ -202,7 +204,7 @@ pthread_t create_thread_for_item(char item_path[], userInfo user) {
     return thread;
 }
 
-void create_process_for_category(char category_path[], userInfo user) {
+void create_process_for_category(char category_path[], userInfo* user) {
     pid_t pid = fork();
 
     if (pid < 0) {
@@ -212,7 +214,7 @@ void create_process_for_category(char category_path[], userInfo user) {
         // printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
 
         char log_path[MAX_PATH_LEN];
-        sprintf(log_path, "%s/%s_OrderID.log", category_path, user.userID);
+        sprintf(log_path, "%s/%s_OrderID.log", category_path, user->userID);
         FILE* log_file = fopen(log_path, "w");
         fprintf(log_file, "PID of the process exploring in this category: %d\n", getpid());
         fclose(log_file);
@@ -224,7 +226,7 @@ void create_process_for_category(char category_path[], userInfo user) {
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
         for (int i = 0; i < item_count; i++) pthread_join(threads[i], NULL);
 
-        int user_index = find_user_index(user.userID, 0);
+        int user_index = find_user_index(user->userID, 0);
 
         mqd_t mq = mq_open(QUEUE_NAME, O_WRONLY);
         if (mq == (mqd_t)-1) {
@@ -240,7 +242,7 @@ void create_process_for_category(char category_path[], userInfo user) {
     }
 }
 
-void create_process_for_store(char store_path[], userInfo user) {
+void create_process_for_store(char store_path[], userInfo* user) {
     pid_t pid = fork();
 
     if (pid < 0) {
@@ -261,15 +263,17 @@ void create_process_for_store(char store_path[], userInfo user) {
 }
 
 void* handle_orders(void *args) {
+    enter_critical_section(&order_lock);
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
-    while (1) {
-        enter_critical_section(order_args->lock);
-        if (order_args->shopping_list != NULL && strcmp(order_args->shopping_list, "") != 0) {
-            exit_critical_section(order_args->lock);
-            break;
-        }
-        exit_critical_section(order_args->lock);
-    }
+    // while (1) {
+    //     enter_critical_section(order_args->lock);
+    //     if (order_args->shopping_list != NULL && strcmp(order_args->shopping_list, "") != 0) {
+    //         printf("Shopping list is ready\n");
+    //         exit_critical_section(order_args->lock);
+    //         break;
+    //     }
+    //     exit_critical_section(order_args->lock);
+    // }
 
     for (int i = 0; i < MAX_STORES; i++) {
         printf("Store%d %d\n", i + 1, order_args->shopping_list[i].message_count);
@@ -278,10 +282,8 @@ void* handle_orders(void *args) {
                 order_args->shopping_list[i].messages[j].userID, order_args->shopping_list[i].messages[j].itemName, order_args->shopping_list[i].messages[j].itemPrice,
                 order_args->shopping_list[i].messages[j].itemScore, order_args->shopping_list[i].messages[j].itemEntity, order_args->shopping_list[i].messages[j].category);
             
-            enter_critical_section(order_args->lock);
             order_args->shopping_list[i].total_price += order_args->shopping_list[i].messages[j].itemPrice;
             order_args->shopping_list[i].total_value += order_args->shopping_list[i].messages[j].itemValue;
-            exit_critical_section(order_args->lock);
         }
         printf("Total price: %.2f, Total value: %.2f\n", order_args->shopping_list[i].total_price, order_args->shopping_list[i].total_value);
 
@@ -311,23 +313,22 @@ void* handle_scores(void *args) {
 void* handle_final(void *args) {
     enter_critical_section(&order_lock);
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
-    printf("Finalizing order for user %s\n", order_args->user.userID);
-    if (order_args->user.priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[0]].total_price) {
-        printf("Best order for user %s is finalized\n", order_args->user.userID);
-        order_args->user.order_count += 1;
-    } else if (order_args->user.priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[1]].total_price) {
-        printf("Second best order for user %s is finalized\n", order_args->user.userID);
-        order_args->user.order_count += 1;
-    } else if (order_args->user.priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[2]].total_price) {
-        printf("Third best order for user %s is finalized\n", order_args->user.userID);
-        order_args->user.order_count += 1;
+    if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[0]].total_price) {
+        printf("Best order for user %s is finalized\n", order_args->user->userID);
+        order_args->user->order_count++;
+    } else if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[1]].total_price) {
+        printf("Second best order for user %s is finalized\n", order_args->user->userID);
+        order_args->user->order_count++;
+    } else if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[2]].total_price) {
+        printf("Third best order for user %s is finalized\n", order_args->user->userID);
+        order_args->user->order_count++;
     } else {
-        printf("No order for user %s is finalized\n", order_args->user.userID);
+        printf("No order for user %s is finalized\n", order_args->user->userID);
     }
     exit_critical_section(&order_lock);
 }
 
-pthread_t create_thread_for_orders(userInfo user, OrderThreadArgs* args) {
+pthread_t create_thread_for_orders(userInfo* user, OrderThreadArgs* args) {
     pthread_t thread;
     
     args->user = user;
@@ -340,7 +341,7 @@ pthread_t create_thread_for_orders(userInfo user, OrderThreadArgs* args) {
     return thread;
 }
 
-pthread_t create_thread_for_scores(userInfo user, OrderThreadArgs* args) {
+pthread_t create_thread_for_scores(userInfo* user, OrderThreadArgs* args) {
     pthread_t thread;
     
     args->user = user;
@@ -353,7 +354,7 @@ pthread_t create_thread_for_scores(userInfo user, OrderThreadArgs* args) {
     return thread;
 }
 
-pthread_t create_thread_for_final(userInfo user, OrderThreadArgs* args) {
+pthread_t create_thread_for_final(userInfo* user, OrderThreadArgs* args) {
     pthread_t thread;
     
     args->user = user;
@@ -366,12 +367,14 @@ pthread_t create_thread_for_final(userInfo user, OrderThreadArgs* args) {
     return thread;
 }
 
-void create_process_for_user(userInfo user) {
+void create_process_for_user(userInfo* user) {
     char store_dirs[3][256];
     char sub_dirs[100][256];
     int store_dir_count = find_store_dirs(store_dirs);
 
-    //age bega raftim havaset be in bashe
+    int fd[2];
+    pipe(fd);
+
     mq_unlink(QUEUE_NAME);
     init_message_queue();
     
@@ -383,16 +386,15 @@ void create_process_for_user(userInfo user) {
 
     } else if (pid == 0) {
         OrderThreadArgs* args = malloc(sizeof(OrderThreadArgs));
-        atomic_int lock = 0;
-        args->lock = &lock;
+        // atomic_int lock = 0;
+        // args->lock = &lock;
 
         args->best_shopping_list_indexes[0] = -1;
         args->best_shopping_list_indexes[1] = -1;
         args->best_shopping_list_indexes[2] = -1;
 
-        // printf("%s create PID: %d\n", user.userID, getpid());
+        // printf("%s create PID: %d\n", user->userID, getpid());
 
-        printf("locking order lock\n");
         enter_critical_section(&order_lock);
         pthread_t orderThread = create_thread_for_orders(user, args);
         pthread_t scoreThread = create_thread_for_scores(user, args);
@@ -409,6 +411,7 @@ void create_process_for_user(userInfo user) {
 
         ShoppingList shopping_list[MAX_STORES];
         receive_messages(mq, shopping_list);  
+        exit_critical_section(&order_lock);
 
         enter_critical_section(&lock);
         memcpy(args->shopping_list, shopping_list, sizeof(shopping_list));
@@ -420,8 +423,13 @@ void create_process_for_user(userInfo user) {
         pthread_join(scoreThread, NULL);
         pthread_join(finalThread, NULL);
 
+        close(fd[0]);
+        write(fd[1], user, sizeof(userInfo));
+
         exit(0);
     } else {
         wait(NULL);
+        close(fd[1]);
+        read(fd[0], user, sizeof(userInfo));
     }
 }

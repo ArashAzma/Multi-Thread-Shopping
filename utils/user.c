@@ -16,25 +16,25 @@ void print_user_data(userInfo user) {
     printf("----------------------------------------------\n\n\n");
 }
 
-userInfo get_user_input(users* users_list) {
+userInfo* get_user_input(users* users_list) {
     int user_founded = 0;
     char userID[50];
     order orderList[ORDER_COUNT];
     int priceThreshold;
     char priceThresholdInput[10];
-    userInfo user;
+    userInfo* user;
 
     strcpy(userID, "user1");
 
     for (int i = 0; i < users_list->user_count; i++) {
         if (strcmp(users_list->users[i].userID, userID) == 0) {
             user_founded = 1;
-            user = users_list->users[i];
+            user = &users_list->users[i];
         }
     }
     if (!user_founded) {
-        user.order_count = 0;
-        users_list->users[users_list->user_count] = user;
+        user = &users_list->users[users_list->user_count];
+        user->order_count = 0;
         users_list->user_count++;
     };
 
@@ -61,12 +61,12 @@ userInfo get_user_input(users* users_list) {
     // if (priceThresholdInput[0] == '\n') priceThreshold = -1;
     // else priceThreshold = atoi(priceThresholdInput);
 
-    strcpy(user.userID, userID);
+    strcpy(user->userID, userID);
     for (int i = 0; i < ORDER_COUNT; i++) {
-        strcpy(user.orderList[i].name, orderList[i].name);
-        user.orderList[i].count = orderList[i].count;
+        strcpy(user->orderList[i].name, orderList[i].name);
+        user->orderList[i].count = orderList[i].count;
     }
-    user.priceThreshold = priceThreshold;
+    user->priceThreshold = priceThreshold;
 
     return user;
 }
