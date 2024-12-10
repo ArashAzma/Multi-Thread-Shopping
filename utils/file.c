@@ -39,7 +39,6 @@ void get_store_name(char path[], char store_name[]) {
     strcpy(store_name, "Unknown");
 }
 
-
 void read_item_data(char item_path[], char item_name[], float *item_price, float *item_score, int *item_entity) {
     FILE* item_file = fopen(item_path, "r");
     if (item_file == NULL) {

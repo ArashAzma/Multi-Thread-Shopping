@@ -68,9 +68,7 @@ void receive_messages(mqd_t mq, ShoppingList shopping_list[]) {
     shopping_list[1].message_count = 0;
     shopping_list[2].message_count = 0;
 
-    // FIX LATER
-    int c=0;
-    while (c<6) {
+    while (1) {
         if (mq_receive(mq, (char*)&msg, sizeof(Message), NULL) == -1) break;
 
         int index = -1;
@@ -85,7 +83,6 @@ void receive_messages(mqd_t mq, ShoppingList shopping_list[]) {
         shopping_list[index].message_count++;
         // printf("User: %s, Store: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
         //     msg.userID, msg.store, msg.itemName, msg.itemPrice, msg.itemScore, msg.itemEntity, msg.category);
-        c++;
     }
 
     return shopping_list;
@@ -264,7 +261,7 @@ void* handle_orders(void *args) {
         exit_critical_section(order_args->lock);
     }
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < MAX_STORES; i++) {
         printf("Store%d %d\n", i+1, order_args->shopping_list[i].message_count);
         for (int j = 0; j < order_args->shopping_list[i].message_count; j++) {
             printf("User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
@@ -294,6 +291,8 @@ void create_process_for_user(userInfo user) {
     char store_dirs[3][256];
     char sub_dirs[100][256];
     int store_dir_count = find_store_dirs(store_dirs);
+
+    //age bega raftim havaset be in bashe
     mq_unlink(QUEUE_NAME);
     init_message_queue();
     
@@ -313,8 +312,8 @@ void create_process_for_user(userInfo user) {
         for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user);
         for (int i = 0; i < store_dir_count; i++) wait(NULL);
 
-        mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY);
-        if (mq == (mqd_t)-1) {
+        mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY | O_NONBLOCK);
+        if (mq == (mqd_t) - 1) {
             perror("Failed to open message queue in store process");
             exit(EXIT_FAILURE);
         }
