@@ -55,6 +55,7 @@ void send_message(mqd_t mq, UserSearchResults* user, int user_index) {
         msg.itemEntity = user->founded_items_in_category[j].Entity;
         strcpy(msg.category, user->founded_items_in_category[j].Category);
         strcpy(msg.store, user->founded_items_in_category[j].Store);
+        msg.itemValue = user->founded_items_in_category[j].value;
 
         if (mq_send(mq, (const char*)&msg, sizeof(Message), 0) == -1) {
             perror("Failed to send message");
@@ -67,6 +68,14 @@ void receive_messages(mqd_t mq, ShoppingList shopping_list[]) {
     shopping_list[0].message_count = 0;
     shopping_list[1].message_count = 0;
     shopping_list[2].message_count = 0;
+
+    shopping_list[0].total_value = 0;
+    shopping_list[1].total_value = 0;
+    shopping_list[2].total_value = 0;
+
+    shopping_list[0].total_price = 0;
+    shopping_list[1].total_price = 0;
+    shopping_list[2].total_price = 0;
 
     while (1) {
         if (mq_receive(mq, (char*)&msg, sizeof(Message), NULL) == -1) break;
@@ -160,6 +169,7 @@ void* process_item(void* arg) {
             item.Score = item_score;
             item.Entity = item_entity;
             item.last_modified = time(NULL);
+            item.value = item_price * item_score;
             strcpy(item.Store, store_name);
             add_item_to_category(user, &item, category);
             break;
@@ -196,9 +206,13 @@ pthread_t create_thread_for_item(char item_path[], userInfo user) {
     return thread;
 }
 
-void create_process_for_category(char category_path[], userInfo user) {    pid_t pid = fork();
+void create_process_for_category(char category_path[], userInfo user) {
+    pid_t pid = fork();
 
-    if (pid == 0) {
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    } else if (pid == 0) {
         // printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
 
         char log_path[MAX_PATH_LEN];
@@ -232,6 +246,7 @@ void create_process_for_category(char category_path[], userInfo user) {    pid_t
 
 void create_process_for_store(char store_path[], userInfo user) {
     pid_t pid = fork();
+
     if (pid < 0) {
         perror("Fork failed");
         exit(EXIT_FAILURE);
@@ -262,16 +277,34 @@ void* handle_orders(void *args) {
     }
 
     for (int i = 0; i < MAX_STORES; i++) {
-        printf("Store%d %d\n", i+1, order_args->shopping_list[i].message_count);
+        printf("Store%d %d\n", i + 1, order_args->shopping_list[i].message_count);
         for (int j = 0; j < order_args->shopping_list[i].message_count; j++) {
             printf("User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
                 order_args->shopping_list[i].messages[j].userID, order_args->shopping_list[i].messages[j].itemName, order_args->shopping_list[i].messages[j].itemPrice,
                 order_args->shopping_list[i].messages[j].itemScore, order_args->shopping_list[i].messages[j].itemEntity, order_args->shopping_list[i].messages[j].category);
+            
+            enter_critical_section(order_args->lock);
+            order_args->shopping_list[i].total_price += order_args->shopping_list[i].messages[j].itemPrice;
+            order_args->shopping_list[i].total_value += order_args->shopping_list[i].messages[j].itemValue;
+            exit_critical_section(order_args->lock);
+        }
+        printf("Total price: %.2f, Total value: %.2f\n", order_args->shopping_list[i].total_price, order_args->shopping_list[i].total_value);
+
+        if (order_args->best_shopping_list_index == -1 || order_args->shopping_list[i].total_value > order_args->shopping_list[order_args->best_shopping_list_index].total_value) {
+            order_args->best_shopping_list_index = i;
         }
     }
 
+    printf("\nBest shopping list is Store%d with total value of %.2f\n", order_args->best_shopping_list_index + 1, order_args->shopping_list[order_args->best_shopping_list_index].total_value);
+
     free(order_args);
     return NULL;
+}
+
+void* handle_scores(void *args) {
+}
+
+void* handle_final(void *args) {
 }
 
 pthread_t create_thread_for_orders(userInfo user, OrderThreadArgs* args) {
@@ -280,6 +313,32 @@ pthread_t create_thread_for_orders(userInfo user, OrderThreadArgs* args) {
     args->user = user;
 
     if (pthread_create(&thread, NULL, handle_orders, args) != 0) {
+        perror("Failed to create thread");
+        free(args);
+        exit(EXIT_FAILURE);
+    }
+    return thread;
+}
+
+pthread_t create_thread_for_scores(userInfo user, OrderThreadArgs* args) {
+    pthread_t thread;
+    
+    args->user = user;
+
+    if (pthread_create(&thread, NULL, handle_scores, args) != 0) {
+        perror("Failed to create thread");
+        free(args);
+        exit(EXIT_FAILURE);
+    }
+    return thread;
+}
+
+pthread_t create_thread_for_final(userInfo user, OrderThreadArgs* args) {
+    pthread_t thread;
+    
+    args->user = user;
+
+    if (pthread_create(&thread, NULL, handle_final, args) != 0) {
         perror("Failed to create thread");
         free(args);
         exit(EXIT_FAILURE);
@@ -306,9 +365,13 @@ void create_process_for_user(userInfo user) {
         OrderThreadArgs* args = malloc(sizeof(OrderThreadArgs));
         atomic_int lock = 0;
         args->lock = &lock;
+        args->best_shopping_list_index = -1;
         // printf("%s create PID: %d\n", user.userID, getpid());
 
         pthread_t orderThread = create_thread_for_orders(user, args);
+        pthread_t scoreThread = create_thread_for_scores(user, args);
+        pthread_t finalThread = create_thread_for_final(user, args);
+
         for (int i = 0; i < store_dir_count; i++) create_process_for_store(store_dirs[i], user);
         for (int i = 0; i < store_dir_count; i++) wait(NULL);
 
@@ -319,16 +382,7 @@ void create_process_for_user(userInfo user) {
         }
 
         ShoppingList shopping_list[MAX_STORES];
-        receive_messages(mq, shopping_list);
-
-        // for (int i = 0; i < 3; i++) {
-        //     printf("Store%d %d\n", i+1, shopping_list[i].message_count);
-        //     for (int j = 0; j < shopping_list[i].message_count; j++) {
-        //         printf("User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
-        //             shopping_list[i].messages[j].userID, shopping_list[i].messages[j].itemName, shopping_list[i].messages[j].itemPrice,
-        //             shopping_list[i].messages[j].itemScore, shopping_list[i].messages[j].itemEntity, shopping_list[i].messages[j].category);
-        //     }
-        // }   
+        receive_messages(mq, shopping_list);  
 
         enter_critical_section(&lock);
         memcpy(args->shopping_list, shopping_list, sizeof(shopping_list));

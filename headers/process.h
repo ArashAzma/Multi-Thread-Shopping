@@ -24,6 +24,7 @@ typedef struct {
     time_t last_modified;
     char Category[20];
     char Store[20];
+    float value;
 } Item;
 
 typedef struct {
@@ -40,11 +41,14 @@ typedef struct {
     int itemEntity;
     char category[20];
     char store[20];
+    float itemValue;
 } Message;
 
 typedef struct {
     Message messages[10];
     int message_count;
+    float total_value;
+    float total_price;
 } ShoppingList;
 
 typedef struct {
@@ -52,6 +56,7 @@ typedef struct {
     userInfo user;
     ShoppingList shopping_list[3];
     atomic_int* lock;
+    int best_shopping_list_index;
 } OrderThreadArgs;
 
 void* process_item(void* arg);
