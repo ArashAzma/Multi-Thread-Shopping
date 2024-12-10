@@ -56,7 +56,7 @@ typedef struct {
     userInfo user;
     ShoppingList shopping_list[3];
     atomic_int* lock;
-    int best_shopping_list_index;
+    int best_shopping_list_indexes[3];
 } OrderThreadArgs;
 
 void* process_item(void* arg);

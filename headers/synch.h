@@ -4,6 +4,7 @@
 #include <stdatomic.h>
 
 extern atomic_int lock;
+extern atomic_int order_lock;
 
 int test_and_set(atomic_int* lock);
 

@@ -5,6 +5,7 @@
 #include <stdatomic.h>
 
 atomic_int lock = 0;
+atomic_int order_lock = 0;
 
 int test_and_set(atomic_int* lock) {
     return atomic_exchange(lock, 1);

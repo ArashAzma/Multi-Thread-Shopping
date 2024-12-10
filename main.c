@@ -9,11 +9,18 @@
 #include "headers/synch.h"
 
 int main() {
+    users users_list;
+
     while (1) {
         printf("Main process is running\n");
-        userInfo user = get_user_input();
+        userInfo user = get_user_input(&users_list);
         create_process_for_user(user);
+
         sleep(10);
+
+        for (int i = 0; i < users_list.user_count; i++) {
+            print_user_data(users_list.users[i]);
+        }
     }
 
     return 0;

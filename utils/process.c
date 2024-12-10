@@ -130,11 +130,7 @@ void* process_item(void* arg) {
 
     enter_critical_section(&lock);
     sprintf(log_path, "%s/%s_OrderID.log", args->category_path, args->user.userID);
-    exit_critical_section(&lock);
-
     FILE* log_file = fopen(log_path, "a");
-
-    enter_critical_section(&lock);
     fprintf(log_file, "thread with ID of %lu exploring item %s\n", pthread_self(), args->item_path);
     fclose(log_file);
     exit_critical_section(&lock);
@@ -266,7 +262,6 @@ void create_process_for_store(char store_path[], userInfo user) {
 
 void* handle_orders(void *args) {
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
-    pthread_detach(pthread_self());
     while (1) {
         enter_critical_section(order_args->lock);
         if (order_args->shopping_list != NULL && strcmp(order_args->shopping_list, "") != 0) {
@@ -290,14 +285,23 @@ void* handle_orders(void *args) {
         }
         printf("Total price: %.2f, Total value: %.2f\n", order_args->shopping_list[i].total_price, order_args->shopping_list[i].total_value);
 
-        if (order_args->best_shopping_list_index == -1 || order_args->shopping_list[i].total_value > order_args->shopping_list[order_args->best_shopping_list_index].total_value) {
-            order_args->best_shopping_list_index = i;
+        if (order_args->best_shopping_list_indexes[0] == -1) order_args->best_shopping_list_indexes[i] = i;
+        else if (order_args->shopping_list[i].total_value > order_args->shopping_list[order_args->best_shopping_list_indexes[0]].total_value) {
+            order_args->best_shopping_list_indexes[2] = order_args->best_shopping_list_indexes[1];
+            order_args->best_shopping_list_indexes[1] = order_args->best_shopping_list_indexes[0];
+            order_args->best_shopping_list_indexes[0] = i;
+        } else if (order_args->shopping_list[i].total_value > order_args->shopping_list[order_args->best_shopping_list_indexes[1]].total_value) {
+            order_args->best_shopping_list_indexes[2] = order_args->best_shopping_list_indexes[1];
+            order_args->best_shopping_list_indexes[1] = i;
+        } else {
+            order_args->best_shopping_list_indexes[2] = i;
         }
     }
 
-    printf("\nBest shopping list is Store%d with total value of %.2f\n", order_args->best_shopping_list_index + 1, order_args->shopping_list[order_args->best_shopping_list_index].total_value);
+    printf("Best shopping lists in order based on total_value: %d %d %d\n", order_args->best_shopping_list_indexes[0], order_args->best_shopping_list_indexes[1], order_args->best_shopping_list_indexes[2]);
 
-    free(order_args);
+    // free(order_args);
+    exit_critical_section(&order_lock);
     return NULL;
 }
 
@@ -305,6 +309,22 @@ void* handle_scores(void *args) {
 }
 
 void* handle_final(void *args) {
+    enter_critical_section(&order_lock);
+    OrderThreadArgs* order_args = (OrderThreadArgs*)args;
+    printf("Finalizing order for user %s\n", order_args->user.userID);
+    if (order_args->user.priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[0]].total_price) {
+        printf("Best order for user %s is finalized\n", order_args->user.userID);
+        order_args->user.order_count += 1;
+    } else if (order_args->user.priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[1]].total_price) {
+        printf("Second best order for user %s is finalized\n", order_args->user.userID);
+        order_args->user.order_count += 1;
+    } else if (order_args->user.priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[2]].total_price) {
+        printf("Third best order for user %s is finalized\n", order_args->user.userID);
+        order_args->user.order_count += 1;
+    } else {
+        printf("No order for user %s is finalized\n", order_args->user.userID);
+    }
+    exit_critical_section(&order_lock);
 }
 
 pthread_t create_thread_for_orders(userInfo user, OrderThreadArgs* args) {
@@ -365,9 +385,15 @@ void create_process_for_user(userInfo user) {
         OrderThreadArgs* args = malloc(sizeof(OrderThreadArgs));
         atomic_int lock = 0;
         args->lock = &lock;
-        args->best_shopping_list_index = -1;
+
+        args->best_shopping_list_indexes[0] = -1;
+        args->best_shopping_list_indexes[1] = -1;
+        args->best_shopping_list_indexes[2] = -1;
+
         // printf("%s create PID: %d\n", user.userID, getpid());
 
+        printf("locking order lock\n");
+        enter_critical_section(&order_lock);
         pthread_t orderThread = create_thread_for_orders(user, args);
         pthread_t scoreThread = create_thread_for_scores(user, args);
         pthread_t finalThread = create_thread_for_final(user, args);
@@ -389,6 +415,10 @@ void create_process_for_user(userInfo user) {
         exit_critical_section(&lock);        
         
         mq_close(mq);
+
+        pthread_join(orderThread, NULL);
+        pthread_join(scoreThread, NULL);
+        pthread_join(finalThread, NULL);
 
         exit(0);
     } else {
