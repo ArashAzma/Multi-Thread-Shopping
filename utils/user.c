@@ -33,6 +33,7 @@ userInfo get_user_input(users* users_list) {
         }
     }
     if (!user_founded) {
+        user.order_count = 0;
         users_list->users[users_list->user_count] = user;
         users_list->user_count++;
     };
