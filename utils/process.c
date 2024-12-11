@@ -159,7 +159,7 @@ void* process_item(void* arg) {
     get_category_name(args->category_path, category);
 
     for (int i = 0; i < ORDER_COUNT; i++) {
-        if (strcasecmp(args->user->orderList[i].name, item_name) == 0) {
+        if (strcasecmp(args->user->orderList[i].name, item_name) == 0 && args->user->orderList[i].count <= item_entity) {
             Item item = {0};
             strcpy(item.Name, item_name);
             item.Price = item_price;
@@ -263,7 +263,7 @@ void create_process_for_store(char store_path[], userInfo* user) {
 }
 
 void* handle_orders(void *args) {
-    enter_critical_section(&order_lock);
+    enter_critical_section(&msq_lock);
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
     // while (1) {
     //     enter_critical_section(order_args->lock);
@@ -282,8 +282,13 @@ void* handle_orders(void *args) {
                 order_args->shopping_list[i].messages[j].userID, order_args->shopping_list[i].messages[j].itemName, order_args->shopping_list[i].messages[j].itemPrice,
                 order_args->shopping_list[i].messages[j].itemScore, order_args->shopping_list[i].messages[j].itemEntity, order_args->shopping_list[i].messages[j].category);
             
-            order_args->shopping_list[i].total_price += order_args->shopping_list[i].messages[j].itemPrice;
-            order_args->shopping_list[i].total_value += order_args->shopping_list[i].messages[j].itemValue;
+            for (int k = 0; k < ORDER_COUNT; k++) {
+                if (strcasecmp(order_args->shopping_list[i].messages[j].itemName, order_args->user->orderList[k].name) == 0) {
+                    order_args->shopping_list[i].total_price += order_args->shopping_list[i].messages[j].itemPrice * order_args->user->orderList[k].count;
+                    order_args->shopping_list[i].total_value += order_args->shopping_list[i].messages[j].itemValue;
+                    break;
+                }
+            }
         }
         printf("Total price: %.2f, Total value: %.2f\n", order_args->shopping_list[i].total_price, order_args->shopping_list[i].total_value);
 
@@ -304,6 +309,7 @@ void* handle_orders(void *args) {
 
     // free(order_args);
     exit_critical_section(&order_lock);
+    exit_critical_section(&msq_lock);
     return NULL;
 }
 
@@ -395,6 +401,7 @@ void create_process_for_user(userInfo* user) {
 
         // printf("%s create PID: %d\n", user->userID, getpid());
 
+        enter_critical_section(&msq_lock);
         enter_critical_section(&order_lock);
         pthread_t orderThread = create_thread_for_orders(user, args);
         pthread_t scoreThread = create_thread_for_scores(user, args);
@@ -411,7 +418,7 @@ void create_process_for_user(userInfo* user) {
 
         ShoppingList shopping_list[MAX_STORES];
         receive_messages(mq, shopping_list);  
-        exit_critical_section(&order_lock);
+        exit_critical_section(&msq_lock);
 
         enter_critical_section(&lock);
         memcpy(args->shopping_list, shopping_list, sizeof(shopping_list));
