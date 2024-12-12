@@ -17,6 +17,7 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 #define MAX_USERS 10
+#define ORDER_DELAY 4
 
 #define MQ_MAX_MESSAGES 10
 #define MQ_MAX_MSG_SIZE sizeof(UserSearchResults)
@@ -186,17 +187,12 @@ void* process_item(void* arg) {
 void* thread_job(void* arg) {
     pthread_detach(pthread_self());
     ThreadArgs* args = (ThreadArgs*)arg;
-    // // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
-    // process_item(args);
     while(1){
         if(!args->sw){
-            // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
             process_item(args);
             args->sw=1;
         }
-        sleep(3);
-        // for (long int i=0; i<1000000000 ;i++);
-
+        sleep(10);
         printf("ALIVE : %lu\n", pthread_self());
     }
 }
@@ -281,8 +277,7 @@ void create_process_for_store(char store_path[], userInfo* user) {
 }
 
 void* handle_orders(void *args) {
-    sleep(4);
-    printf("SLEEP ENDED\n");
+    sleep(ORDER_DELAY);
     
     mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY | O_NONBLOCK);
     if (mq == (mqd_t)-1) {
@@ -344,19 +339,22 @@ void* handle_scores(void *args) {
 }
 
 void* handle_final(void *args) {
+    sleep(ORDER_DELAY + 1);
     enter_critical_section(&order_lock);
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
-    if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[0]].total_price) {
-        printf("Best order for user %s is finalized\n", order_args->user->userID);
-        order_args->user->order_count++;
-    } else if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[1]].total_price) {
-        printf("Second best order for user %s is finalized\n", order_args->user->userID);
-        order_args->user->order_count++;
-    } else if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[2]].total_price) {
-        printf("Third best order for user %s is finalized\n", order_args->user->userID);
-        order_args->user->order_count++;
-    } else {
+
+    int best_shopping_list_index = -1;
+    for (int i=0; i<MAX_STORES; i++){
+        if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[i]].total_price){
+            best_shopping_list_index = order_args->best_shopping_list_indexes[i];
+            order_args->user->order_count++;
+            break;
+        }
+    }
+    if(best_shopping_list_index==-1){
         printf("No order for user %s is finalized\n", order_args->user->userID);
+    }else{
+        printf("%d Best order for user %s is finalized\n", best_shopping_list_index, order_args->user->userID);
     }
     exit_critical_section(&order_lock);
 }
