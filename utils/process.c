@@ -186,16 +186,16 @@ void* process_item(void* arg) {
 void* thread_job(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
     // // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
-    // process_item(args);
-    while(1){
-        if(!args->sw){
-            // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
-            process_item(args);
-            args->sw=1;
-        }
-        // printf("ALIVE : %lu\n", pthread_self());
-        sleep(3);
-    }
+    process_item(args);
+    // while(1){
+    //     if(!args->sw){
+    //         // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
+    //         process_item(args);
+    //         args->sw=1;
+    //     }
+    //     // printf("ALIVE : %lu\n", pthread_self());
+    //     sleep(3);
+    // }
 }
 
 pthread_t create_thread_for_item(char item_path[], userInfo* user) {
@@ -249,16 +249,14 @@ void create_process_for_category(char category_path[], userInfo* user) {
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
         // for (int i = 0; i < item_count; i++) pthread_join(threads[i], NULL);
         for (int i = 0; i < item_count; i++) pthread_detach(threads[i]);
+        for (long int i=0; i<5000000000 ;i++);
 
         int user_index = find_user_index(user->userID, 0);
-
         mqd_t mq = mq_open(QUEUE_NAME, O_WRONLY);
         if (mq == (mqd_t)-1) {
             perror("Failed to open message queue in category process");
             exit(EXIT_FAILURE);
         }
-        // *********************** 
-        sleep(3);
         printf("KIR %d \n", user_search_results[user_index].founded_items_in_category_count);
         for (int i = 0; i < user_search_results[user_index].founded_items_in_category_count; i++) {
             printf("KIR User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
