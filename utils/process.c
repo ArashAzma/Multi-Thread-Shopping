@@ -171,7 +171,7 @@ void* process_item(void* arg) {
             item.value = item_price * item_score;
             strcpy(item.Store, store_name);
 
-            printf("User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
+            printf(" * User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
                 args->user->userID, item_name, item_price, item_score, item_entity, category);
 
             add_item_to_category(user, &item, category);
@@ -184,18 +184,21 @@ void* process_item(void* arg) {
 }
 
 void* thread_job(void* arg) {
+    pthread_detach(pthread_self());
     ThreadArgs* args = (ThreadArgs*)arg;
     // // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
-    process_item(args);
-    // while(1){
-    //     if(!args->sw){
-    //         // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
-    //         process_item(args);
-    //         args->sw=1;
-    //     }
-    //     // printf("ALIVE : %lu\n", pthread_self());
-    //     sleep(3);
-    // }
+    // process_item(args);
+    while(1){
+        if(!args->sw){
+            // printf("%lu PROCESSING : %s\n", pthread_self(), args->item_path);
+            process_item(args);
+            args->sw=1;
+        }
+        sleep(3);
+        // for (long int i=0; i<1000000000 ;i++);
+
+        printf("ALIVE : %lu\n", pthread_self());
+    }
 }
 
 pthread_t create_thread_for_item(char item_path[], userInfo* user) {
@@ -208,12 +211,6 @@ pthread_t create_thread_for_item(char item_path[], userInfo* user) {
     strcpy(args->item_path, item_path);
     args->user = user;
     args->sw = 0;
-    // strcpy(args->user->userID, user->userID);
-    // args->user->priceThreshold = user->priceThreshold;
-    // for (int i = 0; i < ORDER_COUNT; i++) {
-    //     strcpy(args->user->orderList[i].name, user->orderList[i].name);
-    //     args->user->orderList[i].count = user->orderList[i].count;
-    // }
     char* last_slash = strrchr(category_path, '/');
     *last_slash = '\0';
     strcpy(args->category_path, category_path);
@@ -247,8 +244,6 @@ void create_process_for_category(char category_path[], userInfo* user) {
 
         pthread_t threads[item_count];
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
-        // for (int i = 0; i < item_count; i++) pthread_join(threads[i], NULL);
-        for (int i = 0; i < item_count; i++) pthread_detach(threads[i]);
         for (long int i=0; i<5000000000 ;i++);
 
         int user_index = find_user_index(user->userID, 0);
@@ -257,18 +252,12 @@ void create_process_for_category(char category_path[], userInfo* user) {
             perror("Failed to open message queue in category process");
             exit(EXIT_FAILURE);
         }
-        printf("KIR %d \n", user_search_results[user_index].founded_items_in_category_count);
-        for (int i = 0; i < user_search_results[user_index].founded_items_in_category_count; i++) {
-            printf("KIR User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
-                user_search_results[user_index].userID, user_search_results[user_index].founded_items_in_category[i].Name,
-                user_search_results[user_index].founded_items_in_category[i].Price, user_search_results[user_index].founded_items_in_category[i].Score,
-                user_search_results[user_index].founded_items_in_category[i].Entity, user_search_results[user_index].founded_items_in_category[i].Category);
-        
-        }
-
         send_message(mq, &user_search_results[user_index], user_index);
-        exit(0);
+        
+        // Parent process of threads
+        sleep(15);
         mq_close(mq);
+        exit(0);
     } else {
         wait(NULL);
     }
@@ -292,17 +281,27 @@ void create_process_for_store(char store_path[], userInfo* user) {
 }
 
 void* handle_orders(void *args) {
+    sleep(4);
+    printf("SLEEP ENDED\n");
+    
+    mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY | O_NONBLOCK);
+    if (mq == (mqd_t)-1) {
+        perror("Failed to open message queue in user process");
+        exit(EXIT_FAILURE);
+    }
+
+    ShoppingList shopping_list[MAX_STORES];
+    receive_messages(mq, shopping_list);
+
     enter_critical_section(&msq_lock);
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
-    // while (1) {
-    //     enter_critical_section(order_args->lock);
-    //     if (order_args->shopping_list != NULL && strcmp(order_args->shopping_list, "") != 0) {
-    //         printf("Shopping list is ready\n");
-    //         exit_critical_section(order_args->lock);
-    //         break;
-    //     }
-    //     exit_critical_section(order_args->lock);
-    // }
+    memcpy(order_args->shopping_list, shopping_list, sizeof(shopping_list));
+
+    if(order_args->shopping_list[0].message_count==0){
+        printf("No message in queue\n");
+        exit_critical_section(&msq_lock);
+        return NULL;
+    }
 
     for (int i = 0; i < MAX_STORES; i++) {
         printf("Store%d %d\n", i + 1, order_args->shopping_list[i].message_count);
@@ -336,9 +335,8 @@ void* handle_orders(void *args) {
 
     printf("Best shopping lists in order based on total_value: %d %d %d\n", order_args->best_shopping_list_indexes[0], order_args->best_shopping_list_indexes[1], order_args->best_shopping_list_indexes[2]);
 
-    // free(order_args);
-    exit_critical_section(&order_lock);
     exit_critical_section(&msq_lock);
+    mq_close(mq);
     return NULL;
 }
 
@@ -406,6 +404,12 @@ void create_process_for_user(userInfo* user) {
     char store_dirs[3][256];
     int store_dir_count = find_store_dirs(store_dirs);
 
+    OrderThreadArgs* args = malloc(sizeof(OrderThreadArgs));
+
+    pthread_t orderThread = create_thread_for_orders(user, args);
+    pthread_t scoreThread = create_thread_for_scores(user, args);
+    pthread_t finalThread = create_thread_for_final(user, args);
+
     mq_unlink(QUEUE_NAME);
     init_message_queue();
 
@@ -427,32 +431,6 @@ void create_process_for_user(userInfo* user) {
     }
 
     for (int i = 0; i < store_dir_count; i++) waitpid(store_pids[i], NULL, 0);
-
-    OrderThreadArgs* args = malloc(sizeof(OrderThreadArgs));
-    args->best_shopping_list_indexes[0] = -1;
-    args->best_shopping_list_indexes[1] = -1;
-    args->best_shopping_list_indexes[2] = -1;
-
-    sleep(3);
-    
-    mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY | O_NONBLOCK);
-    if (mq == (mqd_t)-1) {
-        perror("Failed to open message queue in user process");
-        exit(EXIT_FAILURE);
-    }
-
-    ShoppingList shopping_list[MAX_STORES];
-    receive_messages(mq, shopping_list);
-
-    enter_critical_section(&shopping_lock);
-    memcpy(args->shopping_list, shopping_list, sizeof(shopping_list));
-    exit_critical_section(&shopping_lock);
-
-    pthread_t orderThread = create_thread_for_orders(user, args);
-    pthread_t scoreThread = create_thread_for_scores(user, args);
-    pthread_t finalThread = create_thread_for_final(user, args);
-
-    mq_close(mq);
 
     pthread_join(orderThread, NULL);
     pthread_join(scoreThread, NULL);
