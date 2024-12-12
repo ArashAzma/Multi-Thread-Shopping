@@ -5,6 +5,10 @@
 #include <stdatomic.h>
 
 atomic_int lock = 0;
+atomic_int shopping_lock = 0;
+atomic_int file_lock = 0;
+atomic_int user_lock = 0;
+atomic_int category_lock = 0;
 atomic_int order_lock = 0;
 atomic_int msq_lock = 0;
 

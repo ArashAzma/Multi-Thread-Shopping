@@ -14,6 +14,7 @@ typedef struct {
     char category_path[MAX_PATH_LEN];
     char item_path[MAX_PATH_LEN];
     userInfo* user;
+    int sw;
 } ThreadArgs;
 
 typedef struct {

@@ -4,6 +4,10 @@
 #include <stdatomic.h>
 
 extern atomic_int lock;
+extern atomic_int shopping_lock;
+extern atomic_int file_lock;
+extern atomic_int user_lock;
+extern atomic_int category_lock;
 extern atomic_int order_lock;
 extern atomic_int msq_lock;
 
