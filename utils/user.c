@@ -39,7 +39,7 @@ userInfo* get_user_input(users* users_list) {
     };
 
     strcpy(orderList[0].name, "Jeans");
-    orderList[0].count = 1;
+    orderList[0].count = 2;
     
     strcpy(orderList[1].name, "T-shirt");
     orderList[1].count = 1;
