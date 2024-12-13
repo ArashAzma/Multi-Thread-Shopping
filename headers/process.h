@@ -27,6 +27,7 @@ typedef struct {
     char Category[20];
     char Store[20];
     float value;
+    int entity_requested;
 } Item;
 
 typedef struct {
@@ -45,11 +46,13 @@ typedef struct {
     char category[20];
     char store[20];
     float itemValue;
+    int item_entity_requested;
 } Message;
 
 typedef struct {
     // char userID[20];
     char itemPaths[10][256];
+    int item_count[10];
 } ThreadMessage;
 
 typedef struct {

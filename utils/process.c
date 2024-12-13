@@ -69,6 +69,7 @@ void send_message(mqd_t mq, UserSearchResults* user, int user_index) {
         msg.itemPrice = user->founded_items_in_category[j].Price;
         msg.itemScore = user->founded_items_in_category[j].Score;
         msg.itemEntity = user->founded_items_in_category[j].Entity;
+        msg.item_entity_requested = user->founded_items_in_category[j].entity_requested;
         strcpy(msg.category, user->founded_items_in_category[j].Category);
         strcpy(msg.store, user->founded_items_in_category[j].Store);
         strcpy(msg.fileName, user->founded_items_in_category[j].FileName);
@@ -189,6 +190,7 @@ void* process_item(void* arg) {
             item.Entity = item_entity;
             item.last_modified = time(NULL);
             item.value = item_price * item_score;
+            item.entity_requested = args->user->orderList[i].count;
             strcpy(item.Store, store_name);
             strcpy(item.FileName, fileName);
 
@@ -204,6 +206,40 @@ void* process_item(void* arg) {
     return NULL;
 }
 
+void update_entity(int entity_req, char item_path[]) {
+    char lines[7][100], entity[20];
+    int old_entity;
+    FILE* file = fopen(item_path, "r");
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
+    }
+    fgets(lines[0], sizeof(lines[0]), file);
+    fgets(lines[1], sizeof(lines[1]), file);
+    fgets(lines[2], sizeof(lines[2]), file);
+    fscanf(file, "%s %d", entity, &old_entity);
+    fgets(lines[4], sizeof(lines[4]), file);
+    fgets(lines[5], sizeof(lines[5]), file);
+    fgets(lines[6], sizeof(lines[6]), file);
+    fclose(file);
+
+    int new_entity = old_entity - entity_req;
+
+    file = fopen(item_path, "w");
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
+    }
+    fprintf(file, "%s", lines[0]);
+    fprintf(file, "%s", lines[1]);
+    fprintf(file, "%s", lines[2]);
+    fprintf(file, "%s %d", entity, new_entity);
+    fprintf(file, "%s", lines[4]);
+    fprintf(file, "%s", lines[5]);
+    fprintf(file, "%s", lines[6]);
+    fclose(file);
+}
+
 void* thread_job(void* arg) {
     pthread_detach(pthread_self());
     ThreadArgs* args = (ThreadArgs*)arg;
@@ -213,16 +249,18 @@ void* thread_job(void* arg) {
             args->sw=1;
         }
         sleep(10);
-        printf("ALIVE : %lu\n", pthread_self());
+        // printf("ALIVE : %lu\n", pthread_self());
 
         ThreadMessage* msg = (ThreadMessage*)shmem;
         
-        for (int i=0; i<10; i++){
-            if(strcmp(msg->itemPaths[i], "")!=0){
+        for (int i=0; i<ORDER_COUNT; i++){
+            if (strcmp(msg->itemPaths[i], "")!=0) {
                 char full_path[256] = DATASET;
                 strcat(full_path, msg->itemPaths[i]);
-                if(strcmp(full_path, args->item_path)==0){
-                    printf("Thread %lu In Path %s Found %s \n", pthread_self(), args->item_path,full_path);
+                if (strcmp(full_path, args->item_path)==0) {
+                    printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->item_count[i]);
+                    update_entity(msg->item_count[i], args->item_path);
+                    break;
                 }
             }
         }
@@ -381,26 +419,27 @@ void* handle_final(void *args) {
     
     int best_shopping_list_index = -1;
 
-    for (int i=0; i<MAX_STORES; i++){
+    for (int i=0; i<MAX_STORES; i++) {
         if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[i]].total_price){
             best_shopping_list_index = order_args->best_shopping_list_indexes[i];
             order_args->user->order_count++;
             break;
         }
     }
-    if(best_shopping_list_index==-1){
+    if (best_shopping_list_index==-1) {
         printf("No order for user %s is finalized\n", order_args->user->userID);
-    }else{
+    } else {
         char bestStore[10];
 
-        if(best_shopping_list_index==0) strcpy(bestStore, "Store1");
-        else if(best_shopping_list_index==1) strcpy(bestStore, "Store2");
-        else if(best_shopping_list_index==2) strcpy(bestStore, "Store3");
+        if (best_shopping_list_index == 0) strcpy(bestStore, "Store1");
+        else if (best_shopping_list_index == 1) strcpy(bestStore, "Store2");
+        else if (best_shopping_list_index == 2) strcpy(bestStore, "Store3");
         
         printf("%d Best order for user %s is finalized\n", best_shopping_list_index, order_args->user->userID);
         int message_count = order_args->shopping_list[best_shopping_list_index].message_count;
 
         char item_paths[10][256];
+        int item_count[10];
 
         for (int i = 0; i < message_count; i++) {
             char item_path[256] = "\0"; 
@@ -410,12 +449,14 @@ void* handle_final(void *args) {
                     order_args->shopping_list[best_shopping_list_index].messages[i].category, 
                     order_args->shopping_list[best_shopping_list_index].messages[i].fileName
                     );
+            item_count[i] = order_args->shopping_list[best_shopping_list_index].messages[i].item_entity_requested;
             strcpy(item_paths[i], item_path);
         }
 
         ThreadMessage* msg = (ThreadMessage*)shmem; 
         for (int i=0; i<10; i++){
             strcpy(msg->itemPaths[i], item_paths[i]);
+            msg->item_count[i] = item_count[i];
         }
         memcpy(shmem, msg, sizeof(msg));
     }
