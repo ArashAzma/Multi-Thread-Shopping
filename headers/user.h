@@ -12,7 +12,9 @@ typedef struct UserInfo {
     char userID[50];
     order orderList[ORDER_COUNT];
     int priceThreshold;
-    int order_count;
+    int store1_order_count;
+    int store2_order_count;
+    int store3_order_count;
 } userInfo;
 
 typedef struct Users {

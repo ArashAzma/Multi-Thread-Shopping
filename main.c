@@ -18,8 +18,6 @@ int main() {
 
         sleep(5);
 
-        printf("1-order count: %d\n", user->order_count);
-        printf("2-order count: %d\n", users_list.users[0].order_count);
         printf("users count: %d\n", users_list.user_count);
 
         for (int i = 0; i < users_list.user_count; i++) {

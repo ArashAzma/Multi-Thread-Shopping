@@ -427,6 +427,9 @@ void* handle_orders(void *args) {
                 }
             }
         }
+        if (i == 0 && order_args->user->store1_order_count > 0) order_args->shopping_list[i].total_price *= 0.95;
+        else if (i == 1 && order_args->user->store2_order_count > 0) order_args->shopping_list[i].total_price *= 0.95;
+        else if (i == 2 && order_args->user->store3_order_count > 0) order_args->shopping_list[i].total_price *= 0.95;
         printf("Total price: %.2f, Total value: %.2f\n", order_args->shopping_list[i].total_price, order_args->shopping_list[i].total_value);
 
         if (order_args->best_shopping_list_indexes[0] == -1) order_args->best_shopping_list_indexes[i] = i;
@@ -482,7 +485,6 @@ void* handle_final(void *args) {
     for (int i=0; i<MAX_STORES; i++) {
         if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[i]].total_price){
             best_shopping_list_index = order_args->best_shopping_list_indexes[i];
-            order_args->user->order_count++;
             break;
         }
     }
@@ -491,11 +493,20 @@ void* handle_final(void *args) {
     } else {
         char bestStore[10];
 
-        if (best_shopping_list_index == 0) strcpy(bestStore, "Store1");
-        else if (best_shopping_list_index == 1) strcpy(bestStore, "Store2");
-        else if (best_shopping_list_index == 2) strcpy(bestStore, "Store3");
+        if (best_shopping_list_index == 0) {
+            strcpy(bestStore, "Store1");
+            order_args->user->store1_order_count++;
+        }
+        else if (best_shopping_list_index == 1) {
+            strcpy(bestStore, "Store2");
+            order_args->user->store2_order_count++;
+        }
+        else if (best_shopping_list_index == 2) {
+            strcpy(bestStore, "Store3");
+            order_args->user->store3_order_count++;
+        }
         
-        printf("%d Best order for user %s is finalized\n", best_shopping_list_index, order_args->user->userID);
+        printf("store%d Best order for user %s is finalized\n", best_shopping_list_index + 1, order_args->user->userID);
         int message_count = order_args->shopping_list[best_shopping_list_index].message_count;
 
         char item_paths[10][256];

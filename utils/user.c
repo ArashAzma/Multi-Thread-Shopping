@@ -12,7 +12,9 @@ void print_user_data(userInfo user) {
     printf("Order List: \n");
     for (int i = 0; i < ORDER_COUNT; i++) printf("%s %d\n", user.orderList[i].name, user.orderList[i].count);
     printf("Price Threshold: %d\n", user.priceThreshold);
-    printf("Order Count: %d\n", user.order_count);
+    printf("Store1 Order Count: %d\n", user.store1_order_count);
+    printf("Store2 Order Count: %d\n", user.store2_order_count);
+    printf("Store3 Order Count: %d\n", user.store3_order_count);
     printf("----------------------------------------------\n\n\n");
 }
 
@@ -34,7 +36,9 @@ userInfo* get_user_input(users* users_list) {
     }
     if (!user_founded) {
         user = &users_list->users[users_list->user_count];
-        user->order_count = 0;
+        user->store1_order_count = 0;
+        user->store2_order_count = 1;
+        user->store3_order_count = 0;
         users_list->user_count++;
     };
 
@@ -47,7 +51,7 @@ userInfo* get_user_input(users* users_list) {
     strcpy(orderList[2].name, "Dress");
     orderList[2].count = 2;
     
-    priceThreshold = 5000;
+    priceThreshold = 2200;
 
     // printf("Username: ");
     // scanf("%s", userID);
