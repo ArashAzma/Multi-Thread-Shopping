@@ -23,6 +23,7 @@ typedef struct {
     float Score;
     int Entity;
     time_t last_modified;
+    char FileName[20];
     char Category[20];
     char Store[20];
     float value;
@@ -40,6 +41,7 @@ typedef struct {
     float itemPrice;
     float itemScore;
     int itemEntity;
+    char fileName[20];
     char category[20];
     char store[20];
     float itemValue;

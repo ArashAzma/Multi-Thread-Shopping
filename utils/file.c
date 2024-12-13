@@ -7,6 +7,21 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
+void get_file_name(char path[], char file_name[]) {
+    // DatasetTest/Store1/Apparel/162.txt
+    char path_copy[MAX_PATH_LEN];
+    strncpy(path_copy, path, MAX_PATH_LEN);
+    path_copy[MAX_PATH_LEN - 1] = '\0';
+
+    char* last_slash = strrchr(path_copy, '/');
+    
+    if (last_slash != NULL) {
+        strcpy(file_name, last_slash + 1);
+    } else {
+        strcpy(file_name, path_copy);
+    }
+}
+
 void get_category_name(char path[], char category_name[]) {
     // DatasetTest/Store1/Digital
     char path_copy[MAX_PATH_LEN];

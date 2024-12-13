@@ -4,6 +4,8 @@
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
 
+void get_file_name(char path[], char file_name[]);
+
 void get_category_name(char path[], char category_name[]);
 
 void get_store_name(char path[], char store_name[]);

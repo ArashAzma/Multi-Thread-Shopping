@@ -56,6 +56,7 @@ void send_message(mqd_t mq, UserSearchResults* user, int user_index) {
         msg.itemEntity = user->founded_items_in_category[j].Entity;
         strcpy(msg.category, user->founded_items_in_category[j].Category);
         strcpy(msg.store, user->founded_items_in_category[j].Store);
+        strcpy(msg.fileName, user->founded_items_in_category[j].FileName);
         msg.itemValue = user->founded_items_in_category[j].value;
 
         if (mq_send(mq, (const char*)&msg, sizeof(Message), 0) == -1) {
@@ -161,6 +162,9 @@ void* process_item(void* arg) {
     char category[100];
     get_category_name(args->category_path, category);
 
+    char fileName[100];
+    get_file_name(args->item_path, fileName);
+
     for (int i = 0; i < ORDER_COUNT; i++) {
         if (strcasecmp(args->user->orderList[i].name, item_name) == 0 && args->user->orderList[i].count <= item_entity) {
             Item item = {0};
@@ -171,9 +175,10 @@ void* process_item(void* arg) {
             item.last_modified = time(NULL);
             item.value = item_price * item_score;
             strcpy(item.Store, store_name);
+            strcpy(item.FileName, fileName);
 
-            printf(" * User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
-                args->user->userID, item_name, item_price, item_score, item_entity, category);
+            printf(" * %s User: %s, Item: %s, Price: %.2f, Score: %.2f, Entity: %d, Category: %s\n",
+                args->item_path, args->user->userID, item_name, item_price, item_score, item_entity, category);
 
             add_item_to_category(user, &item, category);
             break;
@@ -354,7 +359,26 @@ void* handle_final(void *args) {
     if(best_shopping_list_index==-1){
         printf("No order for user %s is finalized\n", order_args->user->userID);
     }else{
+        char bestStore[10];
+
+        if(best_shopping_list_index==0) strcpy(bestStore, "Store1");
+        else if(best_shopping_list_index==1) strcpy(bestStore, "Store2");
+        else if(best_shopping_list_index==2) strcpy(bestStore, "Store3");
+        
         printf("%d Best order for user %s is finalized\n", best_shopping_list_index, order_args->user->userID);
+        int message_count = order_args->shopping_list[best_shopping_list_index].message_count;
+        for (int i = 0; i < message_count; i++) {
+            char item_path[256] = "\0"; 
+        
+            snprintf(item_path, sizeof(item_path), "%s/%s/%s/%s", 
+                    bestStore, 
+                    order_args->shopping_list[best_shopping_list_index].messages[i].category, 
+                    order_args->shopping_list[best_shopping_list_index].messages[i].itemName,
+                    order_args->shopping_list[best_shopping_list_index].messages[i].fileName
+                    );
+
+            printf("Best order Item paths: %s\n", item_path);
+        }
     }
     exit_critical_section(&order_lock);
 }
@@ -427,7 +451,6 @@ void create_process_for_user(userInfo* user) {
             store_pids[i] = pid;
         }
     }
-
     for (int i = 0; i < store_dir_count; i++) waitpid(store_pids[i], NULL, 0);
 
     pthread_join(orderThread, NULL);
