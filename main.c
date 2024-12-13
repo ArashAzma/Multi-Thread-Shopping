@@ -25,6 +25,7 @@ int main() {
         for (int i = 0; i < users_list.user_count; i++) {
             print_user_data(users_list.users[i]);
         }
+        break;
     }
 
     return 0;

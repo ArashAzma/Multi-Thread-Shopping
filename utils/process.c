@@ -13,6 +13,7 @@
 #include <mqueue.h>
 #include <sys/ipc.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
@@ -27,9 +28,23 @@
 #define MAX_MESSAGES 10
 
 #define MAX_STORES 3
+#define DATASET "DatasetTest/"
+
+#define SHM_KEY 12345
+#define NUM_STRINGS 10  
 
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
+
+void* create_shared_memory(size_t size) {
+  int protection = PROT_READ | PROT_WRITE;
+
+  int visibility = MAP_SHARED | MAP_ANONYMOUS;
+
+  return mmap(NULL, size, protection, visibility, -1, 0);
+}
+
+void* shmem = NULL;
 
 mqd_t init_message_queue() {
     struct mq_attr attr;
@@ -199,6 +214,20 @@ void* thread_job(void* arg) {
         }
         sleep(10);
         printf("ALIVE : %lu\n", pthread_self());
+
+        ThreadMessage* msg = (ThreadMessage*)shmem;
+        
+        for (int i=0; i<10; i++){
+            if(strcmp(msg->itemPaths[i], "")!=0){
+                char full_path[256] = DATASET;
+                strcat(full_path, msg->itemPaths[i]);
+                if(strcmp(full_path, args->item_path)==0){
+                    printf("Thread %lu In Path %s Found %s \n", pthread_self(), args->item_path,full_path);
+                }
+            }
+        }
+
+        break;
     }
 }
 
@@ -245,7 +274,7 @@ void create_process_for_category(char category_path[], userInfo* user) {
 
         pthread_t threads[item_count];
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
-        for (long int i=0; i<5000000000 ;i++);
+        for (long int i=0; i<500000000 ;i++);
 
         int user_index = find_user_index(user->userID, 0);
         mqd_t mq = mq_open(QUEUE_NAME, O_WRONLY);
@@ -256,8 +285,8 @@ void create_process_for_category(char category_path[], userInfo* user) {
         send_message(mq, &user_search_results[user_index], user_index);
         
         // Parent process of threads
-        sleep(15);
         mq_close(mq);
+        sleep(15);
         exit(0);
     } else {
         wait(NULL);
@@ -346,9 +375,12 @@ void* handle_scores(void *args) {
 void* handle_final(void *args) {
     sleep(ORDER_DELAY + 1);
     enter_critical_section(&order_lock);
-    OrderThreadArgs* order_args = (OrderThreadArgs*)args;
+    
 
+    OrderThreadArgs* order_args = (OrderThreadArgs*)args;
+    
     int best_shopping_list_index = -1;
+
     for (int i=0; i<MAX_STORES; i++){
         if (order_args->user->priceThreshold >= order_args->shopping_list[order_args->best_shopping_list_indexes[i]].total_price){
             best_shopping_list_index = order_args->best_shopping_list_indexes[i];
@@ -367,18 +399,25 @@ void* handle_final(void *args) {
         
         printf("%d Best order for user %s is finalized\n", best_shopping_list_index, order_args->user->userID);
         int message_count = order_args->shopping_list[best_shopping_list_index].message_count;
+
+        char item_paths[10][256];
+
         for (int i = 0; i < message_count; i++) {
             char item_path[256] = "\0"; 
         
-            snprintf(item_path, sizeof(item_path), "%s/%s/%s/%s", 
+            snprintf(item_path, sizeof(item_path), "%s/%s/%s", 
                     bestStore, 
                     order_args->shopping_list[best_shopping_list_index].messages[i].category, 
-                    order_args->shopping_list[best_shopping_list_index].messages[i].itemName,
                     order_args->shopping_list[best_shopping_list_index].messages[i].fileName
                     );
-
-            printf("Best order Item paths: %s\n", item_path);
+            strcpy(item_paths[i], item_path);
         }
+
+        ThreadMessage* msg = (ThreadMessage*)shmem; 
+        for (int i=0; i<10; i++){
+            strcpy(msg->itemPaths[i], item_paths[i]);
+        }
+        memcpy(shmem, msg, sizeof(msg));
     }
     exit_critical_section(&order_lock);
 }
@@ -434,6 +473,8 @@ void create_process_for_user(userInfo* user) {
 
     mq_unlink(QUEUE_NAME);
     init_message_queue();
+    shmem = create_shared_memory(sizeof(ThreadMessage));
+
 
     pid_t store_pids[store_dir_count];
 
@@ -457,5 +498,8 @@ void create_process_for_user(userInfo* user) {
     pthread_join(scoreThread, NULL);
     pthread_join(finalThread, NULL);
 
+    if (munmap(shmem, sizeof(ThreadMessage)) != 0) {
+        perror("munmap failed");
+    }
     free(args);
 }

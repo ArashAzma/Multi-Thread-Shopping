@@ -48,6 +48,11 @@ typedef struct {
 } Message;
 
 typedef struct {
+    // char userID[20];
+    char itemPaths[10][256];
+} ThreadMessage;
+
+typedef struct {
     Message messages[10];
     int message_count;
     float total_value;
