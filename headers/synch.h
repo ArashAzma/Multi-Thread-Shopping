@@ -10,6 +10,8 @@ extern atomic_int user_lock;
 extern atomic_int category_lock;
 extern atomic_int order_lock;
 extern atomic_int msq_lock;
+extern atomic_int update_entity_lock;
+extern atomic_int enter_score_lock;
 
 int test_and_set(atomic_int* lock);
 

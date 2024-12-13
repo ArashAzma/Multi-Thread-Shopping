@@ -14,6 +14,7 @@
 #include <sys/ipc.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <time.h>
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
@@ -207,6 +208,7 @@ void* process_item(void* arg) {
 }
 
 void update_entity(int entity_req, char item_path[]) {
+    enter_critical_section(&update_entity_lock);
     char lines[7][100], entity[20];
     int old_entity;
     FILE* file = fopen(item_path, "r");
@@ -237,6 +239,46 @@ void update_entity(int entity_req, char item_path[]) {
     fprintf(file, "%s", lines[4]);
     fprintf(file, "%s", lines[5]);
     fprintf(file, "%s", lines[6]);
+    fclose(file);
+    exit_critical_section(&update_entity_lock);
+}
+
+void update_score_and_LMT(float user_score, char item_path[]) {
+    char lines[5][100], last_modified_time[50], score[20], final_path[256] = DATASET;
+    float old_score;
+
+    strcat(final_path, item_path);
+
+    FILE* file = fopen(final_path, "r");
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
+    }
+    fgets(lines[0], sizeof(lines[0]), file);
+    fgets(lines[1], sizeof(lines[1]), file);
+    fscanf(file, "%s %f", score, &old_score);
+    fgets(lines[2], sizeof(lines[2]), file);
+    fgets(lines[3], sizeof(lines[3]), file);
+    fgets(lines[4], sizeof(lines[4]), file);
+    fclose(file);
+
+    time_t raw_time;
+    time(&raw_time);
+    struct tm *time_info = localtime(&raw_time);
+    strftime(last_modified_time, sizeof(last_modified_time), "%Y-%m-%d %H:%M:%S", time_info);
+
+    user_score = 0.75 * old_score + 0.25 * user_score;
+
+    file = fopen(final_path, "w");
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
+    }
+    fprintf(file, "%s", lines[0]);
+    fprintf(file, "%s", lines[1]);
+    fprintf(file, "%s %.1f\n", score, user_score);
+    fprintf(file, "%s\n", lines[3]);
+    fprintf(file, "Last Modified: %s %s", last_modified_time, lines[4]);
     fclose(file);
 }
 
@@ -408,6 +450,24 @@ void* handle_orders(void *args) {
 }
 
 void* handle_scores(void *args) {
+    sleep(ORDER_DELAY * 3 + 2);
+    enter_critical_section(&enter_score_lock);
+    int user_score = -1;
+    ThreadMessage* msg = (ThreadMessage*)shmem;
+    
+    for (int i = 0; i < ORDER_COUNT; i++) {
+        printf("please enter the score for %s: ", msg->itemPaths[i]);
+        scanf("%d", &user_score);
+        printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
+        if (user_score < 0 || user_score > 10) {
+            printf("Invalid score\n");
+            i--;
+            continue;
+        }
+        update_score_and_LMT(user_score, msg->itemPaths[i]);
+    }
+
+    exit_critical_section(&enter_score_lock);
 }
 
 void* handle_final(void *args) {
