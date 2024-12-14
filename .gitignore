@@ -54,8 +54,8 @@ dkms.conf
 *.json
 
 FUM_OS_1403-01_Project1.pdf
-Dataset
-DatasetTest
+# Dataset
+# DatasetTest
 Dataset.zip
 test.c
 test.out
