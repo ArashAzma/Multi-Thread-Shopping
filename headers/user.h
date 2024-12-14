@@ -2,6 +2,8 @@
 #define USER_H
 
 #define ORDER_COUNT 3
+#define USER_ID_LENGTH 50
+#define PRICE_THRESHOLD_INPUT 10
 
 typedef struct Order {
     char name[50];

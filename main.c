@@ -7,6 +7,8 @@
 #include "headers/file.h"
 #include "headers/user.h"
 #include "headers/synch.h"
+#include "headers/cat.h"
+#include "headers/graphic.h"
 
 int main() {
     users users_list = {.user_count = 0};
