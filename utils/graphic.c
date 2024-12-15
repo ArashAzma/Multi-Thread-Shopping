@@ -11,7 +11,7 @@ void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[U
     ProductInfo names_array[MAX_CATEGORIES * MAX_FILES_PER_CATEGORY];
     int total_names = 0;
 
-    if (!extract_names_from_files_graphic("Dataset/Store1", names_array, &total_names)) {
+    if (!extract_names_from_files_graphic("DatasetTest/Store1", names_array, &total_names)) {
         printf("Failed to load names.");
         return -1;
     }
