@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 void print_user_data(userInfo user) {
     printf("\n\n\n----------------------------------------------\n");
@@ -26,33 +25,8 @@ userInfo* get_user_input(users* users_list) {
     char priceThresholdInput[PRICE_THRESHOLD_INPUT];
     userInfo* user;
 
-    // get_user_input_graphic(orderList, userID, priceThresholdInput);
-    // printf("***Username: %s\n", userID);
-    //     for (int i = 0; i < users_list->user_count; i++) {
-    //     if (strcmp(users_list->users[i].userID, userID) == 0) {
-    //         user_founded = 1;
-    //         user = &users_list->users[i];
-    //     }
-    // }
-    // if (!user_founded) {
-    //     user = &users_list->users[users_list->user_count];
-    //     user->store1_order_count = 0;
-    //     user->store2_order_count = 1;
-    //     user->store3_order_count = 0;
-    //     users_list->user_count++;
-    // };
-
-    // if (strcmp(priceThresholdInput, "") == 0) priceThreshold = INFINITY;
-    // else priceThreshold = atoi(priceThresholdInput);
-    // printf("Price threshold: %s %d\n", priceThresholdInput, priceThreshold);
-    // printf("OrderList: \n");
-    // for (int i = 0; i < ORDER_COUNT; i++) 
-    //     printf("\t%s %d\n", orderList[i].name, orderList[i].count);
-
-
-    strcpy(userID, "user1");
-
-    for (int i = 0; i < users_list->user_count; i++) {
+    get_user_input_graphic(orderList, userID, priceThresholdInput);
+        for (int i = 0; i < users_list->user_count; i++) {
         if (strcmp(users_list->users[i].userID, userID) == 0) {
             user_founded = 1;
             user = &users_list->users[i];
@@ -66,33 +40,54 @@ userInfo* get_user_input(users* users_list) {
         users_list->user_count++;
     };
 
-    strcpy(orderList[0].name, "Blouse with Frills");
-    orderList[0].count = 2;
-    
-    strcpy(orderList[1].name, "Jeans");
-    orderList[1].count = 1;
+    if (strcmp(priceThresholdInput, "") == 0) priceThreshold = 100000;
+    else priceThreshold = atoi(priceThresholdInput);
 
-    strcpy(orderList[2].name, "Dress");
-    orderList[2].count = 2;
-    
-    priceThreshold = 2200;
-
-    // printf("Username: ");
-    // scanf("%s", userID);
-
+    // printf("***Username: %s\n", userID);
+    // printf("Price threshold: %d\n", priceThreshold);
     // printf("OrderList: \n");
-    // for (int i = 0; i < ORDER_COUNT; i++) scanf("%s %d", orderList[i].name, &orderList[i].count);
+    // for (int i = 0; i < ORDER_COUNT; i++) 
+    //     printf("\t%s %d\n", orderList[i].name, orderList[i].count);
+    // printf("\n");
 
-    // printf("Price threshold: \n");
-    // getchar();
-    // fgets(priceThresholdInput, sizeof(priceThresholdInput), stdin);
-    // if (priceThresholdInput[0] == '\n') priceThreshold = INFINITY;
 
+
+
+    // strcpy(userID, "user1");
+    // for (int i = 0; i < users_list->user_count; i++) {
+    //     if (strcmp(users_list->users[i].userID, userID) == 0) {
+    //         user_founded = 1;
+    //         user = &users_list->users[i];
+    //     }
+    // }
+    // if (!user_founded) {
+    //     user = &users_list->users[users_list->user_count];
+    //     user->store1_order_count = 0;
+    //     user->store2_order_count = 1;
+    //     user->store3_order_count = 0;
+    //     users_list->user_count++;
+    // };
+
+    // strcpy(orderList[0].name, "Blouse with Frills");
+    // orderList[0].count = 2;
+    
+    // strcpy(orderList[1].name, "Jeans");
+    // orderList[1].count = 1;
+    // strcpy(orderList[2].name, "Dress");
+    // orderList[2].count = 2;
+    // priceThreshold = 2200;
+    
+    
     strcpy(user->userID, userID);
     for (int i = 0; i < ORDER_COUNT; i++) {
         strcpy(user->orderList[i].name, orderList[i].name);
         user->orderList[i].count = orderList[i].count;
     }
     user->priceThreshold = priceThreshold;
+
+    // madareto gaeedam
+    sleep(2);
+    // print_user_data(*user);
+
     return user;
 }
