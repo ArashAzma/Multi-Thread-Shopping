@@ -26,6 +26,7 @@
 #define NUM_STRINGS 10  
 
 extern void* shmem;
+extern void* shmem_update_score_lock;
 
 typedef struct {
     pthread_t thread;
@@ -74,7 +75,8 @@ typedef struct {
 } ThreadMessage;
 
 typedef struct {
-    ThreadMessage messages[2];
+    ThreadMessage messages[10];
+    int message_count;
 } SharedThreadMessages;
 
 typedef struct {

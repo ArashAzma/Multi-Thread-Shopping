@@ -124,7 +124,7 @@ void* process_item(void* arg) {
     // printf("PID: %d create thread for %s: TID:%lu\n", getppid(), args->item_path, pthread_self());
 
     enter_critical_section(&file_lock);
-    sprintf(log_path, "%s/%s_OrderID.log", args->category_path, args->user->userID);
+    sprintf(log_path, "%s/%s_%d.log", args->category_path, args->user->userID, (args->user->store1_order_count + args->user->store2_order_count + args->user->store3_order_count));
     FILE* log_file = fopen(log_path, "a");
     fprintf(log_file, "thread with ID of %lu exploring item %s\n", pthread_self(), args->item_path);
     fclose(log_file);
@@ -268,16 +268,16 @@ void* thread_job(void* arg) {
 
         SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
         
-        for (int kir = 0; kir < 2; kir++) {
-            // printf("%s %s\n", msg->messages[kir].userID, args->user->userID);
-            if (strcmp(msg->messages[kir].userID, args->user->userID) == 0) {
-                for (int i=0; i<ORDER_COUNT; i++){
-                    if (strcmp(msg->messages[kir].itemPaths[i], "")!=0) {
+        for (int user_index = 0; user_index < msg->message_count; user_index++) {
+            // printf("%s %s\n", msg->messages[user_index].userID, args->user->userID);
+            if (strcmp(msg->messages[user_index].userID, args->user->userID) == 0) {
+                for (int i = 0; i < ORDER_COUNT; i++){
+                    if (strcmp(msg->messages[user_index].itemPaths[i], "") != 0) {
                         char full_path[256] = DATASET;
-                        strcat(full_path, msg->messages[kir].itemPaths[i]);
-                        if (strcmp(full_path, args->item_path)==0) {
-                            printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->messages[kir].item_count[i]);
-                            update_entity(msg->messages[kir].item_count[i], args->item_path);
+                        strcat(full_path, msg->messages[user_index].itemPaths[i]);
+                        if (strcmp(full_path, args->item_path) == 0) {
+                            printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->messages[user_index].item_count[i]);
+                            update_entity(msg->messages[user_index].item_count[i], args->item_path);
                             break;
                         }
                     }
@@ -321,7 +321,7 @@ void create_process_for_category(char category_path[], userInfo* user) {
         // printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
 
         char log_path[MAX_PATH_LEN];
-        sprintf(log_path, "%s/%s_OrderID.log", category_path, user->userID);
+        sprintf(log_path, "%s/%s_%d.log", category_path, user->userID, (user->store1_order_count + user->store2_order_count + user->store3_order_count));
         FILE* log_file = fopen(log_path, "w");
         fprintf(log_file, "PID of the process exploring in this category: %d\n", getpid());
         fclose(log_file);
@@ -452,8 +452,11 @@ void* handle_scores(void *args) {
         float item_score;
         int item_entity;
         char fullPath[256] = DATASET;
-        if (strcmp(order_args->user->userID, "parsa1")) strcat(fullPath, msg->messages[0].itemPaths[i]);
-        else strcat(fullPath, msg->messages[1].itemPaths[i]);
+        for (int user_index = 0; user_index < msg->message_count; user_index++) {
+            if (strcmp(msg->messages[user_index].userID, order_args->user->userID) == 0) {
+                strcat(fullPath, msg->messages[user_index].itemPaths[i]);
+            }
+        }
         read_item_data(fullPath, item_name, &item_price, &item_score, &item_entity);
         
         name_ptrs[i] = strdup(item_name);
@@ -463,26 +466,26 @@ void* handle_scores(void *args) {
 
     for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
     
+    enter_critical_section(shmem_update_score_lock);
     for (int i = 0; i < ORDER_COUNT; i++) {
-        if (strcmp(order_args->user->userID, "parsa1") == 0 && strcmp(msg->messages[0].itemPaths[i], "") == 0) continue;
-        else if (strcmp(order_args->user->userID, "parsa2") == 0 && strcmp(msg->messages[1].itemPaths[i], "") == 0) continue;
 
-        if (strcmp(order_args->user->userID, "parsa1") == 0) printf("please enter the score for %s: ", msg->messages[0].itemPaths[i]);
-        else printf("please enter the score for %s: ", msg->messages[1].itemPaths[i]);
+        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0 && strcmp(msg->messages[user_index].itemPaths[i], "") == 0) continue;
+
+        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) printf("please enter the score for %s: ", msg->messages[user_index].itemPaths[i]);
+
         scanf("%d", &user_score);
-        if (strcmp(order_args->user->userID, "parsa1") == 0) printf("User score for %s: %d\n", msg->messages[0].itemPaths[i], user_score);
-        else printf("User score for %s: %d\n", msg->messages[1].itemPaths[i], user_score);
+
+        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) printf("User score for %s: %d\n", msg->messages[user_index].itemPaths[i], user_score);
+
         if (user_score < 0 || user_score > 10) {
             printf("Invalid score\n");
             i--;
             continue;
         }
-        // printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
-        if (strcmp(order_args->user->userID, "parsa1") == 0) update_score_and_LMT(user_score, msg->messages[0].itemPaths[i]);
-        else update_score_and_LMT(user_score, msg->messages[1].itemPaths[i]);
-        // printf("User score for %s: %d\n", msg->itemPaths[i], scores[i]);
-        // update_score_and_LMT(scores[i], msg->itemPaths[i]);
+
+        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) update_score_and_LMT(user_score, msg->messages[user_index].itemPaths[i]);
     }
+    exit_critical_section(shmem_update_score_lock);
 
     exit_critical_section(&enter_score_lock);
 }
@@ -540,16 +543,15 @@ void* handle_final(void *args) {
         }
 
         SharedThreadMessages* msg = (SharedThreadMessages*)shmem; 
-        for (int i = 0; i < 10; i++){
-            if (strcmp(order_args->user->userID, "parsa1")) {
-                strcpy(msg->messages[0].itemPaths[i], item_paths[i]);
-                msg->messages[0].item_count[i] = item_count[i];
-            }
-            else {
-                strcpy(msg->messages[1].itemPaths[i], item_paths[i]);
-                msg->messages[1].item_count[i] = item_count[i];                
+        for (int i = 0; i < 10; i++) {
+            for (int user_index = 0; user_index < msg->message_count; user_index++) {
+                if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) {
+                    strcpy(msg->messages[user_index].itemPaths[i], item_paths[i]);
+                    msg->messages[user_index].item_count[i] = item_count[i];
+                }
             }
         }
+        
         printf("---------------- %s %s %s %s\n", msg->messages[0].userID, msg->messages[1].userID, msg->messages[0].itemPaths[0], msg->messages[1].itemPaths[0]);
         memcpy(shmem, msg, sizeof(msg));
     }

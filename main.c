@@ -12,6 +12,7 @@
 #include "headers/graphic.h"
 
 void* shmem = NULL;
+void* shmem_update_score_lock = NULL;
 
 void* create_shared_memory(size_t size) {
   int protection = PROT_READ | PROT_WRITE;
@@ -25,36 +26,51 @@ int main() {
     users users_list = {.user_count = 0};
 
     while (1) {
+        int user_count_each_while = 0;
+        char command[10];
+        userInfo* users_array[10];
+
+        printf("enter user count (1 to 10): ");
+        scanf("%d", &user_count_each_while);
+        if (user_count_each_while < 1 || user_count_each_while > 10) continue;
+
+        shmem_update_score_lock = create_shared_memory(sizeof(atomic_int));
+        atomic_int* update_score_lock = (atomic_int*)shmem_update_score_lock;
+        *update_score_lock = 0;
+
         shmem = create_shared_memory(sizeof(SharedThreadMessages));
         SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
-        strcpy(msg->messages[0].userID, "parsa1");
-        strcpy(msg->messages[1].userID, "parsa2");
+        msg->message_count = user_count_each_while;
 
         printf("Main process is running\n");
-        userInfo* user1 = get_user_input(&users_list);
-        userInfo* user2 = get_user_input(&users_list);
 
-        pid_t pid1 = fork();
-        if (pid1 == 0) {
-            create_process_for_user(user1);
-            exit(0);
-        }
-        pid_t pid2 = fork();
-        if (pid2 == 0) {
-            create_process_for_user(user2);
-            exit(0);
+        for (int i = 0; i < user_count_each_while; i++) {
+            userInfo* user = get_user_input(&users_list);
+            users_array[i] = user;
+            strcpy(msg->messages[i].userID, user->userID);
         }
 
-        waitpid(pid1, NULL, 0);
-        waitpid(pid2, NULL, 0);
-        // sleep(5);
+        for (int i = 0; i < user_count_each_while; i++) {
+            int pid = fork();
+            if (pid == 0) {
+                create_process_for_user(users_array[i]);
+                exit(0);
+            }
+        }
+
+        for (int i = 0; i < user_count_each_while; i++) {
+            wait(NULL);
+        }
 
         printf("users count: %d\n", users_list.user_count);
 
         for (int i = 0; i < users_list.user_count; i++) {
             print_user_data(users_list.users[i]);
         }
-        break;
+
+        printf("do you want to continue ? (y/n): ");
+        scanf("%s", command);
+        if (strcmp(command, "y") != 0) break;
     }
 
     return 0;

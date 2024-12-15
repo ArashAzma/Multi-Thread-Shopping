@@ -71,21 +71,12 @@ userInfo* get_user_input(users* users_list) {
         users_list->user_count++;
     };
 
-    if (strcmp(userID, "parsa1") == 0) {
-        strcpy(orderList[0].name, "Laptop");
-        orderList[0].count = 2;
-        // strcpy(orderList[1].name, "Jeans");
-        // orderList[1].count = 1;
-        // strcpy(orderList[2].name, "Dress");
-        // orderList[2].count = 2;
-    } else {
-        strcpy(orderList[0].name, "Dress");
-        orderList[0].count = 1;
-        // strcpy(orderList[1].name, "Smartphone");
-        // orderList[1].count = 3;
-        // strcpy(orderList[2].name, "Foundation");
-        // orderList[2].count = 2;
-    }
+    strcpy(orderList[0].name, "Dress");
+    orderList[0].count = 1;
+    strcpy(orderList[1].name, "Smartphone");
+    orderList[1].count = 3;
+    strcpy(orderList[2].name, "Foundation");
+    orderList[2].count = 2;
 
     priceThreshold = 2200;
     
