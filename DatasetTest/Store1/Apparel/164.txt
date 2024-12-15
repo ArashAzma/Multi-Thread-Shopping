@@ -1,4 +1,4 @@
-Name: Jacket
+Name: Blouse with Frills
 Price: 75.58
 Score: 4.2
 Entity: 29
