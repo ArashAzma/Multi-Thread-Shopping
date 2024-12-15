@@ -20,16 +20,6 @@
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
 
-void* create_shared_memory(size_t size) {
-  int protection = PROT_READ | PROT_WRITE;
-
-  int visibility = MAP_SHARED | MAP_ANONYMOUS;
-
-  return mmap(NULL, size, protection, visibility, -1, 0);
-}
-
-void* shmem = NULL;
-
 mqd_t init_message_queue(char QUEUE_NAME[50]) {
     struct mq_attr attr;
     attr.mq_flags = 0;
@@ -276,20 +266,24 @@ void* thread_job(void* arg) {
         sleep(10);
         // printf("ALIVE : %lu\n", pthread_self());
 
-        // ThreadMessage* msg = (ThreadMessage*)shmem;
+        SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
         
-        // for (int i=0; i<ORDER_COUNT; i++){
-        //     if (strcmp(msg->itemPaths[i], "")!=0) {
-        //         char full_path[256] = DATASET;
-        //         strcat(full_path, msg->itemPaths[i]);
-        //         if (strcmp(full_path, args->item_path)==0) {
-        //             printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->item_count[i]);
-        //             update_entity(msg->item_count[i], args->item_path);
-        //             break;
-        //         }
-        //     }
-        // }
-
+        for (int kir = 0; kir < 2; kir++) {
+            // printf("%s %s\n", msg->messages[kir].userID, args->user->userID);
+            if (strcmp(msg->messages[kir].userID, args->user->userID) == 0) {
+                for (int i=0; i<ORDER_COUNT; i++){
+                    if (strcmp(msg->messages[kir].itemPaths[i], "")!=0) {
+                        char full_path[256] = DATASET;
+                        strcat(full_path, msg->messages[kir].itemPaths[i]);
+                        if (strcmp(full_path, args->item_path)==0) {
+                            printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->messages[kir].item_count[i]);
+                            update_entity(msg->messages[kir].item_count[i], args->item_path);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         break;
     }
 }
@@ -441,11 +435,14 @@ void* handle_orders(void *args) {
 }
 
 void* handle_scores(void *args) {
-    return NULL;
     sleep(ORDER_DELAY * 3 + 2);
     enter_critical_section(&enter_score_lock);
     int user_score = -1;
-    ThreadMessage* msg = (ThreadMessage*)shmem;
+    OrderThreadArgs* order_args = (OrderThreadArgs*)args;
+    SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
+
+    printf("%s %s %s %s\n", msg->messages[0].userID, msg->messages[1].userID, msg->messages[0].itemPaths[0], msg->messages[1].itemPaths[0]);
+
     char* name_ptrs[ORDER_COUNT];
     int scores[ORDER_COUNT] = {0};
 
@@ -455,7 +452,8 @@ void* handle_scores(void *args) {
         float item_score;
         int item_entity;
         char fullPath[256] = DATASET;
-        strcat(fullPath, msg->itemPaths[i]);
+        if (strcmp(order_args->user->userID, "parsa1")) strcat(fullPath, msg->messages[0].itemPaths[i]);
+        else strcat(fullPath, msg->messages[1].itemPaths[i]);
         read_item_data(fullPath, item_name, &item_price, &item_score, &item_entity);
         
         name_ptrs[i] = strdup(item_name);
@@ -466,17 +464,22 @@ void* handle_scores(void *args) {
     for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
     
     for (int i = 0; i < ORDER_COUNT; i++) {
-        if(strcmp(msg->itemPaths[i], "") == 0) continue;
-        printf("please enter the score for %s: ", msg->itemPaths[i]);
+        if (strcmp(order_args->user->userID, "parsa1") == 0 && strcmp(msg->messages[0].itemPaths[i], "") == 0) continue;
+        else if (strcmp(order_args->user->userID, "parsa2") == 0 && strcmp(msg->messages[1].itemPaths[i], "") == 0) continue;
+
+        if (strcmp(order_args->user->userID, "parsa1") == 0) printf("please enter the score for %s: ", msg->messages[0].itemPaths[i]);
+        else printf("please enter the score for %s: ", msg->messages[1].itemPaths[i]);
         scanf("%d", &user_score);
-        printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
+        if (strcmp(order_args->user->userID, "parsa1") == 0) printf("User score for %s: %d\n", msg->messages[0].itemPaths[i], user_score);
+        else printf("User score for %s: %d\n", msg->messages[1].itemPaths[i], user_score);
         if (user_score < 0 || user_score > 10) {
             printf("Invalid score\n");
             i--;
             continue;
         }
         // printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
-        update_score_and_LMT(user_score, msg->itemPaths[i]);
+        if (strcmp(order_args->user->userID, "parsa1") == 0) update_score_and_LMT(user_score, msg->messages[0].itemPaths[i]);
+        else update_score_and_LMT(user_score, msg->messages[1].itemPaths[i]);
         // printf("User score for %s: %d\n", msg->itemPaths[i], scores[i]);
         // update_score_and_LMT(scores[i], msg->itemPaths[i]);
     }
@@ -485,7 +488,6 @@ void* handle_scores(void *args) {
 }
 
 void* handle_final(void *args) {
-    return NULL;
     sleep(ORDER_DELAY + 1);
     enter_critical_section(&order_lock);
     
@@ -537,11 +539,18 @@ void* handle_final(void *args) {
             strcpy(item_paths[i], item_path);
         }
 
-        ThreadMessage* msg = (ThreadMessage*)shmem; 
-        for (int i=0; i<10; i++){
-            strcpy(msg->itemPaths[i], item_paths[i]);
-            msg->item_count[i] = item_count[i];
+        SharedThreadMessages* msg = (SharedThreadMessages*)shmem; 
+        for (int i = 0; i < 10; i++){
+            if (strcmp(order_args->user->userID, "parsa1")) {
+                strcpy(msg->messages[0].itemPaths[i], item_paths[i]);
+                msg->messages[0].item_count[i] = item_count[i];
+            }
+            else {
+                strcpy(msg->messages[1].itemPaths[i], item_paths[i]);
+                msg->messages[1].item_count[i] = item_count[i];                
+            }
         }
+        printf("---------------- %s %s %s %s\n", msg->messages[0].userID, msg->messages[1].userID, msg->messages[0].itemPaths[0], msg->messages[1].itemPaths[0]);
         memcpy(shmem, msg, sizeof(msg));
     }
     // displayFinalOrderText("Best order for user is finalized", 
@@ -603,7 +612,7 @@ void create_process_for_user(userInfo* user) {
     sprintf(QUEUE_NAME, "/%s", user->userID);
     mq_unlink(QUEUE_NAME);
     init_message_queue(QUEUE_NAME);
-    shmem = create_shared_memory(sizeof(ThreadMessage));
+    // shmem = create_shared_memory(sizeof(ThreadMessage));
 
 
     pid_t store_pids[store_dir_count];

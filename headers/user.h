@@ -1,7 +1,7 @@
 #ifndef USER_H
 #define USER_H
 
-#define ORDER_COUNT 3
+#define ORDER_COUNT 1
 #define USER_ID_LENGTH 50
 #define PRICE_THRESHOLD_INPUT 10
 

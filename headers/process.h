@@ -25,6 +25,8 @@
 #define SHM_KEY 12345
 #define NUM_STRINGS 10  
 
+extern void* shmem;
+
 typedef struct {
     pthread_t thread;
     char category_path[MAX_PATH_LEN];
@@ -66,10 +68,14 @@ typedef struct {
 } Message;
 
 typedef struct {
-    // char userID[20];
+    char userID[20];
     char itemPaths[10][256];
     int item_count[10];
 } ThreadMessage;
+
+typedef struct {
+    ThreadMessage messages[2];
+} SharedThreadMessages;
 
 typedef struct {
     Message messages[10];
