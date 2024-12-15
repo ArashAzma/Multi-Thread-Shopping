@@ -197,3 +197,28 @@ void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[U
     strcpy(priceThreshold_input, priceThreshold);
     return 0;
 }
+
+void displayFinalOrderText(const char* text, int store_index, const char* user_id) {
+    InitWindow(800, 450, "Order Confirmation");
+    
+    char display_text[256];
+    snprintf(display_text, sizeof(display_text), 
+             "Store%d\nis the Best order for %s\n", 
+             store_index + 1, user_id);
+    
+    printf("%s\n", display_text);
+    
+    SetTargetFPS(20);
+
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        
+        ClearBackground(DARKBLUE);
+        
+        DrawText(display_text, 100, 200, 20, WHITE);
+        
+        EndDrawing();
+    }
+
+    CloseWindow();
+}

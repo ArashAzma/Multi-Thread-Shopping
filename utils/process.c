@@ -2,6 +2,7 @@
 #include "../headers/file.h"
 #include "../headers/user.h"
 #include "../headers/synch.h"
+#include "../headers/graphic.h"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -355,7 +356,7 @@ void create_process_for_category(char category_path[], userInfo* user) {
 
         pthread_t threads[item_count];
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
-        for (long int i=0; i<500000000 ;i++);
+        for (long int i=0; i<50000000 ;i++);
 
         int user_index = find_user_index(user->userID, 0);
         mqd_t mq = mq_open(QUEUE_NAME, O_WRONLY);
@@ -508,6 +509,10 @@ void* handle_final(void *args) {
         }
         
         printf("store%d Best order for user %s is finalized\n", best_shopping_list_index + 1, order_args->user->userID);
+        displayFinalOrderText("Best order for user is finalized", 
+            best_shopping_list_index, 
+            order_args->user->userID);
+        
         int message_count = order_args->shopping_list[best_shopping_list_index].message_count;
 
         char item_paths[10][256];
