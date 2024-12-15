@@ -509,9 +509,6 @@ void* handle_final(void *args) {
         }
         
         printf("store%d Best order for user %s is finalized\n", best_shopping_list_index + 1, order_args->user->userID);
-        displayFinalOrderText("Best order for user is finalized", 
-            best_shopping_list_index, 
-            order_args->user->userID);
         
         int message_count = order_args->shopping_list[best_shopping_list_index].message_count;
 
@@ -537,6 +534,9 @@ void* handle_final(void *args) {
         }
         memcpy(shmem, msg, sizeof(msg));
     }
+    displayFinalOrderText("Best order for user is finalized", 
+        best_shopping_list_index, 
+        order_args->user->userID);
     exit_critical_section(&order_lock);
 }
 
