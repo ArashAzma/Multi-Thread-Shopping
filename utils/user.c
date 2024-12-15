@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 void print_user_data(userInfo user) {
     printf("\n\n\n----------------------------------------------\n");
@@ -41,7 +42,7 @@ userInfo* get_user_input(users* users_list) {
     //     users_list->user_count++;
     // };
 
-    // if (strcmp(priceThresholdInput, "") == 0) priceThreshold = -1;
+    // if (strcmp(priceThresholdInput, "") == 0) priceThreshold = INFINITY;
     // else priceThreshold = atoi(priceThresholdInput);
     // printf("Price threshold: %s %d\n", priceThresholdInput, priceThreshold);
     // printf("OrderList: \n");
@@ -76,8 +77,6 @@ userInfo* get_user_input(users* users_list) {
     
     priceThreshold = 2200;
 
-
-
     // printf("Username: ");
     // scanf("%s", userID);
 
@@ -87,8 +86,7 @@ userInfo* get_user_input(users* users_list) {
     // printf("Price threshold: \n");
     // getchar();
     // fgets(priceThresholdInput, sizeof(priceThresholdInput), stdin);
-    // if (priceThresholdInput[0] == '\n') priceThreshold = -1;
-
+    // if (priceThresholdInput[0] == '\n') priceThreshold = INFINITY;
 
     strcpy(user->userID, userID);
     for (int i = 0; i < ORDER_COUNT; i++) {
