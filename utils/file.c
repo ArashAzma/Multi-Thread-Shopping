@@ -64,7 +64,7 @@ void read_item_data(char item_path[], char item_name[], float *item_price, float
     char line[256];
     while (fgets(line, sizeof(line), item_file)) {
         if (strncmp(line, "Name:", 5) == 0) {
-            sscanf(line, "Name: %255s", item_name);
+            sscanf(line + 5, " %[^\n]", item_name); 
         } else if (strncmp(line, "Price:", 6) == 0) {
             sscanf(line, "Price: %f", item_price);
         } else if (strncmp(line, "Score:", 6) == 0) {
