@@ -30,7 +30,7 @@ void* create_shared_memory(size_t size) {
 
 void* shmem = NULL;
 
-mqd_t init_message_queue() {
+mqd_t init_message_queue(char QUEUE_NAME[50]) {
     struct mq_attr attr;
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
@@ -340,6 +340,9 @@ void create_process_for_category(char category_path[], userInfo* user) {
         for (long int i=0; i<50000000 ;i++);
 
         int user_index = find_user_index(user->userID, 0);
+
+        char QUEUE_NAME[50];
+        sprintf(QUEUE_NAME, "/%s", user->userID);
         mqd_t mq = mq_open(QUEUE_NAME, O_WRONLY);
         if (mq == (mqd_t)-1) {
             perror("Failed to open message queue in category process");
@@ -376,6 +379,8 @@ void create_process_for_store(char store_path[], userInfo* user) {
 void* handle_orders(void *args) {
     sleep(ORDER_DELAY);
     
+    char QUEUE_NAME[50];
+    sprintf(QUEUE_NAME, "/%s", ((OrderThreadArgs*)args)->user->userID);
     mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY | O_NONBLOCK);
     if (mq == (mqd_t)-1) {
         perror("Failed to open message queue in user process");
@@ -592,8 +597,10 @@ void create_process_for_user(userInfo* user) {
     pthread_t scoreThread = create_thread_for_scores(user, args);
     pthread_t finalThread = create_thread_for_final(user, args);
 
+    char QUEUE_NAME[50];
+    sprintf(QUEUE_NAME, "/%s", user->userID);
     mq_unlink(QUEUE_NAME);
-    init_message_queue();
+    init_message_queue(QUEUE_NAME);
     shmem = create_shared_memory(sizeof(ThreadMessage));
 
 

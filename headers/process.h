@@ -14,7 +14,7 @@
 #define MQ_MAX_MESSAGES 10
 #define MQ_MAX_MSG_SIZE sizeof(UserSearchResults)
 
-#define QUEUE_NAME "/store_category_queue"
+// #define QUEUE_NAME "/store_category_queue"
 #define MAX_MSG_SIZE 1024
 #define MAX_MESSAGES 10
 
