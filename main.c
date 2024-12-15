@@ -15,8 +15,19 @@ int main() {
 
     while (1) {
         printf("Main process is running\n");
-        userInfo* user = get_user_input(&users_list);
-        create_process_for_user(user);
+        userInfo* user1 = get_user_input(&users_list);
+        userInfo* user2 = get_user_input(&users_list);
+
+        pid_t pid1 = fork();
+        if (pid1 == 0) {
+            create_process_for_user(user1);
+            exit(0);
+        }
+        pid_t pid2 = fork();
+        if (pid2 == 0) {
+            create_process_for_user(user2);
+            exit(0);
+        }
 
         sleep(5);
 

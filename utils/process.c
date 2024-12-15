@@ -276,19 +276,19 @@ void* thread_job(void* arg) {
         sleep(10);
         // printf("ALIVE : %lu\n", pthread_self());
 
-        ThreadMessage* msg = (ThreadMessage*)shmem;
+        // ThreadMessage* msg = (ThreadMessage*)shmem;
         
-        for (int i=0; i<ORDER_COUNT; i++){
-            if (strcmp(msg->itemPaths[i], "")!=0) {
-                char full_path[256] = DATASET;
-                strcat(full_path, msg->itemPaths[i]);
-                if (strcmp(full_path, args->item_path)==0) {
-                    printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->item_count[i]);
-                    update_entity(msg->item_count[i], args->item_path);
-                    break;
-                }
-            }
-        }
+        // for (int i=0; i<ORDER_COUNT; i++){
+        //     if (strcmp(msg->itemPaths[i], "")!=0) {
+        //         char full_path[256] = DATASET;
+        //         strcat(full_path, msg->itemPaths[i]);
+        //         if (strcmp(full_path, args->item_path)==0) {
+        //             printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->item_count[i]);
+        //             update_entity(msg->item_count[i], args->item_path);
+        //             break;
+        //         }
+        //     }
+        // }
 
         break;
     }
@@ -441,6 +441,7 @@ void* handle_orders(void *args) {
 }
 
 void* handle_scores(void *args) {
+    return NULL;
     sleep(ORDER_DELAY * 3 + 2);
     enter_critical_section(&enter_score_lock);
     int user_score = -1;
@@ -474,7 +475,7 @@ void* handle_scores(void *args) {
             i--;
             continue;
         }
-        printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
+        // printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
         update_score_and_LMT(user_score, msg->itemPaths[i]);
         // printf("User score for %s: %d\n", msg->itemPaths[i], scores[i]);
         // update_score_and_LMT(scores[i], msg->itemPaths[i]);
@@ -484,6 +485,7 @@ void* handle_scores(void *args) {
 }
 
 void* handle_final(void *args) {
+    return NULL;
     sleep(ORDER_DELAY + 1);
     enter_critical_section(&order_lock);
     

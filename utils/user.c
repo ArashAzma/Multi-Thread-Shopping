@@ -53,7 +53,10 @@ userInfo* get_user_input(users* users_list) {
 
 
 
-    strcpy(userID, "user1");
+    // strcpy(userID, "user1");
+    printf("Enter your username: ");
+    scanf("%s", userID);
+
     for (int i = 0; i < users_list->user_count; i++) {
         if (strcmp(users_list->users[i].userID, userID) == 0) {
             user_founded = 1;
@@ -68,13 +71,22 @@ userInfo* get_user_input(users* users_list) {
         users_list->user_count++;
     };
 
-    strcpy(orderList[0].name, "Blouse with Frills");
-    orderList[0].count = 2;
-    strcpy(orderList[1].name, "Jeans");
-    orderList[1].count = 1;
-    strcpy(orderList[2].name, "Dress");
-    orderList[2].count = 2;
-    
+    if (strcmp(userID, "parsa1") == 0) {
+        strcpy(orderList[0].name, "Blouse with Frills");
+        orderList[0].count = 2;
+        strcpy(orderList[1].name, "Jeans");
+        orderList[1].count = 1;
+        strcpy(orderList[2].name, "Dress");
+        orderList[2].count = 2;
+    } else {
+        strcpy(orderList[0].name, "Laptop");
+        orderList[0].count = 1;
+        strcpy(orderList[1].name, "Smartphone");
+        orderList[1].count = 3;
+        strcpy(orderList[2].name, "Foundation");
+        orderList[2].count = 2;
+    }
+
     priceThreshold = 2200;
     
     
