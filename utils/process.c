@@ -455,19 +455,20 @@ void* handle_scores(void *args) {
         name_ptrs[i] = strdup(item_name);
     }
 
-    handle_store_scores(name_ptrs, scores, ORDER_COUNT);
+    // handle_store_scores(name_ptrs, scores, ORDER_COUNT);
 
     for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
     
     for (int i = 0; i < ORDER_COUNT; i++) {
-        // printf("please enter the score for %s: ", msg->itemPaths[i]);
-        // scanf("%d", &user_score);
-        // printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
-        // if (user_score < 0 || user_score > 10) {
-        //     printf("Invalid score\n");
-        //     i--;
-        //     continue;
-        // }
+        if(strcmp(msg->itemPaths[i], "") == 0) continue;
+        printf("please enter the score for %s: ", msg->itemPaths[i]);
+        scanf("%d", &user_score);
+        printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
+        if (user_score < 0 || user_score > 10) {
+            printf("Invalid score\n");
+            i--;
+            continue;
+        }
         printf("User score for %s: %d\n", msg->itemPaths[i], scores[i]);
         update_score_and_LMT(scores[i], msg->itemPaths[i]);
     }
@@ -534,9 +535,9 @@ void* handle_final(void *args) {
         }
         memcpy(shmem, msg, sizeof(msg));
     }
-    displayFinalOrderText("Best order for user is finalized", 
-        best_shopping_list_index, 
-        order_args->user->userID);
+    // displayFinalOrderText("Best order for user is finalized", 
+    //     best_shopping_list_index, 
+    //     order_args->user->userID);
     exit_critical_section(&order_lock);
 }
 
