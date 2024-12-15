@@ -2,10 +2,13 @@
 #include "raylib.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
 
 #include "../headers/user.h"
 #include "../headers/cat.h"
 #include "../headers/graphic.h"
+#include "../headers/process.h"
 
 void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[USER_ID_LENGTH], char priceThreshold_input[PRICE_THRESHOLD_INPUT]) {
     ProductInfo names_array[MAX_CATEGORIES * MAX_FILES_PER_CATEGORY];
@@ -19,12 +22,11 @@ void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[U
     CategoryGraphic categories[total_names];
     for (int i = 0; i < total_names; i++) {
         strncpy(categories[i].name, names_array[i].name, sizeof(categories[i].name));
-        // printf("%s\n", categories[i].name);
         categories[i].isChecked = 0;
         categories[i].numberInput[0] = '\0';
         categories[i].isInputActive = 0;
     }
-
+    SetTraceLogLevel(LOG_NONE);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "SALAM BRAR");
     SetTargetFPS(60);
 
@@ -199,14 +201,13 @@ void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[U
 }
 
 void displayFinalOrderText(const char* text, int store_index, const char* user_id) {
+    SetTraceLogLevel(LOG_NONE);
     InitWindow(800, 450, "Order Confirmation");
     
     char display_text[256];
     snprintf(display_text, sizeof(display_text), 
              "Store%d\nis the Best order for %s\n", 
              store_index + 1, user_id);
-    
-    printf("%s\n", display_text);
     
     SetTargetFPS(20);
 
@@ -221,4 +222,113 @@ void displayFinalOrderText(const char* text, int store_index, const char* user_i
     }
 
     CloseWindow();
+}
+
+typedef struct {
+    char* itemName;  
+    int score;
+    bool isScoreEntered;
+} ItemScore;
+
+void handle_store_scores(char** names, int* scores, int order_count) {
+    if (names == NULL || scores == NULL || order_count <= 0) {
+        fprintf(stderr, "Invalid input to handle_store_scores\n");
+        return;
+    }
+    SetTraceLogLevel(LOG_NONE);
+    InitWindow(800, 600, "Store Scores Input");
+    SetTargetFPS(60);
+
+    ItemScore* items = calloc(order_count, sizeof(ItemScore));
+    if (items == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        CloseWindow();
+        return;
+    }
+
+    for(int i = 0; i < order_count; i++) {
+        items[i].itemName = strdup(names[i]);
+        items[i].score = -1;
+        items[i].isScoreEntered = false;
+    }
+
+    int current_item = 0;
+    char input_text[10] = "";
+
+    while (!WindowShouldClose() && current_item < order_count) {
+        BeginDrawing();
+        ClearBackground(WHITE);
+
+        char prompt[256];
+        snprintf(prompt, sizeof(prompt), 
+                 "Enter score for %s (0-10):", 
+                 items[current_item].itemName);
+        
+        DrawText(prompt, 50, 200, 20, BLACK);
+        DrawText("Use numbers and ENTER to confirm", 50, 230, 16, GRAY);
+
+        DrawText(input_text, 50, 270, 20, BLUE);
+
+        int key = GetCharPressed();
+        if (key >= '0' && key <= '9' && strlen(input_text) < 2) {
+            int len = strlen(input_text);
+            input_text[len] = key;
+            input_text[len + 1] = '\0';
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+            int len = strlen(input_text);
+            if (len > 0) {
+                input_text[len - 1] = '\0';
+            }
+        }
+
+        if (IsKeyPressed(KEY_ENTER)) {
+            int user_score = atoi(input_text);
+            
+            if (user_score >= 0 && user_score <= 10) {
+                items[current_item].score = user_score;
+                items[current_item].isScoreEntered = true;
+                
+                current_item++;
+                
+                memset(input_text, 0, sizeof(input_text));
+            } else {
+                memset(input_text, 0, sizeof(input_text));
+            }
+        }
+
+        DrawText("Entered Scores:", 50, 350, 18, DARKGREEN);
+        for (int i = 0; i < order_count; i++) {
+            char score_text[100];
+            if (items[i].isScoreEntered) {
+                snprintf(score_text, sizeof(score_text), 
+                         "%s: %d", items[i].itemName, items[i].score);
+                DrawText(score_text, 50, 380 + i * 30, 16, BLACK);
+            } else if (i == current_item) {
+                snprintf(score_text, sizeof(score_text), 
+                         "%s: Entering...", items[i].itemName);
+                DrawText(score_text, 50, 380 + i * 30, 16, BLUE);
+            } else {
+                snprintf(score_text, sizeof(score_text), 
+                         "%s: Not entered", items[i].itemName);
+                DrawText(score_text, 50, 380 + i * 30, 16, GRAY);
+            }
+        }
+
+        if (current_item >= order_count) {
+            DrawText("All item scores entered!", 50, 500, 20, GREEN);
+        }
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+    for (int i = 0; i < order_count; i++) {
+        scores[i] = items[i].score;
+        
+        free(items[i].itemName);
+    }
+
+    free(items);
 }

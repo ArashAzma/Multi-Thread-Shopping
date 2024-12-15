@@ -17,25 +17,6 @@
 #include <sys/mman.h>
 #include <time.h>
 
-#define MAX_SUB_DIRS 100
-#define MAX_PATH_LEN 256
-#define MAX_USERS 10
-#define ORDER_DELAY 4
-
-#define MQ_MAX_MESSAGES 10
-#define MQ_MAX_MSG_SIZE sizeof(UserSearchResults)
-
-#define QUEUE_NAME "/store_category_queue"
-#define MAX_MSG_SIZE 1024
-#define MAX_MESSAGES 10
-
-#define MAX_STORES 3
-#define DATASET "DatasetTest/"
-// #define DATASET "Dataset/"
-
-#define SHM_KEY 12345
-#define NUM_STRINGS 10  
-
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
 
@@ -459,17 +440,36 @@ void* handle_scores(void *args) {
     enter_critical_section(&enter_score_lock);
     int user_score = -1;
     ThreadMessage* msg = (ThreadMessage*)shmem;
+    char* name_ptrs[ORDER_COUNT];
+    int scores[ORDER_COUNT] = {0};
+
+    for (int i = 0; i < ORDER_COUNT; i++) {
+        char item_name[100];
+        float item_price;
+        float item_score;
+        int item_entity;
+        char fullPath[256] = DATASET;
+        strcat(fullPath, msg->itemPaths[i]);
+        read_item_data(fullPath, item_name, &item_price, &item_score, &item_entity);
+        
+        name_ptrs[i] = strdup(item_name);
+    }
+
+    handle_store_scores(name_ptrs, scores, ORDER_COUNT);
+
+    for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
     
     for (int i = 0; i < ORDER_COUNT; i++) {
-        printf("please enter the score for %s: ", msg->itemPaths[i]);
-        scanf("%d", &user_score);
-        printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
-        if (user_score < 0 || user_score > 10) {
-            printf("Invalid score\n");
-            i--;
-            continue;
-        }
-        update_score_and_LMT(user_score, msg->itemPaths[i]);
+        // printf("please enter the score for %s: ", msg->itemPaths[i]);
+        // scanf("%d", &user_score);
+        // printf("User score for %s: %d\n", msg->itemPaths[i], user_score);
+        // if (user_score < 0 || user_score > 10) {
+        //     printf("Invalid score\n");
+        //     i--;
+        //     continue;
+        // }
+        printf("User score for %s: %d\n", msg->itemPaths[i], scores[i]);
+        update_score_and_LMT(scores[i], msg->itemPaths[i]);
     }
 
     exit_critical_section(&enter_score_lock);

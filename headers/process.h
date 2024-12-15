@@ -8,6 +8,22 @@
 
 #define MAX_SUB_DIRS 100
 #define MAX_PATH_LEN 256
+#define MAX_USERS 10
+#define ORDER_DELAY 4
+
+#define MQ_MAX_MESSAGES 10
+#define MQ_MAX_MSG_SIZE sizeof(UserSearchResults)
+
+#define QUEUE_NAME "/store_category_queue"
+#define MAX_MSG_SIZE 1024
+#define MAX_MESSAGES 10
+
+#define MAX_STORES 3
+#define DATASET "DatasetTest/"
+// #define DATASET "Dataset/"
+
+#define SHM_KEY 12345
+#define NUM_STRINGS 10  
 
 typedef struct {
     pthread_t thread;
