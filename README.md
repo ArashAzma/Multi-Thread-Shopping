@@ -12,6 +12,8 @@ Architectures that was used:
 - **Multi-Processing**
 - **Multi-Threading**
 - **Inter-Process Communication (IPC)**
+- **Mutex Lock**
+- **Semaphore**
 
 ### Key **Components**
 
@@ -30,6 +32,7 @@ Architectures that was used:
 - creates a thread for Orders
 - creates a thread for Scores
 - creates a thread for Final
+- creates a message queue for IPC
 
 ![alt text](images/1.png)
 
@@ -39,10 +42,11 @@ Architectures that was used:
  - Calculates total value for stores shopping lists
  - Calculates total price for stores shopping lists
  - Finds Best Shopping list based on stores total value and price
- - Gives a discount to user if Its not the users first purchase
+ - Gives a discount to user if Its not the users first purchase of that store
 
 #### 4. Final Thread
- - Finalizes the order
+ - Finalizes the order based on users's price threshold
+ - Selects the store with most value from those that user can buy from (total price less than user's price threshold)
  - Shows the total price
  - Updates the item files using the Threads using **Shared Memory**
 
@@ -50,6 +54,7 @@ Architectures that was used:
 
 #### 5. Scores Thread
  - Gets Scores for items from users and updates them
+ - Updates last modified time for items that have changed
 
 ![alt text](images/3.png)
 
@@ -66,7 +71,7 @@ Architectures that was used:
 #### 8. Item Thread
  - Locks the files
  - Processes item `reads item data` `create a Item struct`
- - Creates a log file for each item based on `userID and OrderCount`
+ - Creates a log file for each item based on `userID and OrderID`
  - After processing, It waits for the shared memory and reads from it when Final Thread sends messages
 ---
 ## Key Functionalities
@@ -82,13 +87,14 @@ Architectures that was used:
    - Considers item entity (stock) and score
 
 3. **Store Comparison**
-   - Calculates total price and value for each store
-   - Applies discounts for specific stores
+   - Calculates total price and value for each shopping list
+   - Applies discounts for shopping lists that user bought recently from same store
    - Selects the best shopping list based on user's price threshold
 
 4. **Score and Entity Management**
    - Allows users to rate purchased items
-   - Updates item scores dynamically
+   - Updates item scores dynamically 
+   updated_score = (0.75 * old_score + 0.25 * new_score)
    - Reduces item entities after purchase
 ---
 ## Synchronization and Communication
@@ -117,8 +123,19 @@ Architectures that was used:
 7. Finalizes order for users
 
 ## Compilation
+run `bash compile.sh` to compile
 
+`compile.sh`:
 ```bash
 c_files=$(find . -name "*.c" ! -name "test.c")
 sudo gcc -o main.out -w $c_files -pthread -lraylib -lGL -lm -lpthread -ldl -lX11
+```
+
+## Reset Dataset
+run `bash clearDataset.sh` to clear dataset from `log` files
+
+`clearDataset.sh`:
+```bash
+log_files=$(find ./Dataset/ -name "*.log")
+rm -rf $log_files
 ```
