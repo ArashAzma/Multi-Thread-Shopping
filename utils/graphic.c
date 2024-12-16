@@ -211,7 +211,7 @@ void displayFinalOrderText(const char* text, int store_index, const char* user_i
              "Store%d\nis the Best order for %s\n", 
              store_index + 1, user_id);
     
-    SetTargetFPS(20);
+    SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         BeginDrawing();
