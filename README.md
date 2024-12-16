@@ -15,6 +15,8 @@ Architectures that was used:
 
 ### Key **Components**
 
+![alt text](images/logs.png)
+
 #### 1. Main Process
 - Manages user input and overall system flow
 - Creates shared memory for inter-process communication
