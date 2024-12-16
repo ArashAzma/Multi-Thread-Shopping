@@ -572,10 +572,11 @@ void* handle_final(void *args) {
         printf("---------------- %s %s %s %s\n", msg->messages[0].userID, msg->messages[1].userID, msg->messages[0].itemPaths[0], msg->messages[1].itemPaths[0]);
         memcpy(shmem, msg, sizeof(msg));
     }
-
-    displayFinalOrderText("Best order for user is finalized", 
-        best_shopping_list_index, 
-        order_args->user->userID);
+    if(isThereBestShoppingList!=-1){
+        displayFinalOrderText("Best order for user is finalized", 
+            best_shopping_list_index, 
+            order_args->user->userID);
+    }
     
     exit_critical_section(&order_lock);
 
