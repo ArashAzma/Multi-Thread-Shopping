@@ -55,6 +55,20 @@ int main() {
 
         for (int i = 0; i < user_count_each_while; i++) wait(NULL);
 
+        for (int i = 0; i < user_count_each_while; i++) {
+            for (int j = 0; j < users_list.user_count; j++) {
+                if (strcmp(users_array[i]->userID, users_list.users[j].userID) == 0) {
+                    char path[50], command[50];
+                    sprintf(path, "%s.txt", users_array[i]->userID);
+                    FILE* file = fopen(path, "r");
+                    fscanf(file, "%d %d %d", &users_list.users[j].store1_order_count, &users_list.users[j].store2_order_count, &users_list.users[j].store3_order_count);
+                    fclose(file);
+                    sprintf(command, "rm -rf %s", path);
+                    system(command);
+                }
+            }
+        }
+
         printf("users count: %d\n", users_list.user_count);
 
         for (int i = 0; i < users_list.user_count; i++) {

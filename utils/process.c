@@ -658,4 +658,10 @@ void create_process_for_user(userInfo* user) {
         perror("munmap failed");
     }
     free(args);
+
+    char path[50];
+    sprintf(path, "%s.txt", user->userID);
+    FILE* file = fopen(path, "w");
+    fprintf(file, "%d %d %d\n", user->store1_order_count, user->store2_order_count, user->store3_order_count);
+    fclose(file);
 }

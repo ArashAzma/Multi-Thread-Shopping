@@ -1,4 +1,3 @@
-# log_files=$(find ./Dataset/ -name "*OrderID.log")
-log_files=$(find ./DatasetTest/ -name "*.log")
-# echo "Deleting log files: $log_files"
+# log_files=$(find ./DatasetTest/ -name "*.log")
+log_files=$(find ./Dataset/ -name "*.log")
 rm -rf $log_files

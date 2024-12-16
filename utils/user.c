@@ -66,7 +66,7 @@ userInfo* get_user_input(users* users_list) {
     if (!user_founded) {
         user = &users_list->users[users_list->user_count];
         user->store1_order_count = 0;
-        user->store2_order_count = 1;
+        user->store2_order_count = 0;
         user->store3_order_count = 0;
         users_list->user_count++;
     };
