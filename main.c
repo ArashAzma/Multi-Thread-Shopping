@@ -15,15 +15,12 @@ void* shmem = NULL;
 void* shmem_update_score_lock = NULL;
 
 void* create_shared_memory(size_t size) {
-  int protection = PROT_READ | PROT_WRITE;
-
-  int visibility = MAP_SHARED | MAP_ANONYMOUS;
-
-  return mmap(NULL, size, protection, visibility, -1, 0);
+  return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 }
 
 int main() {
     users users_list = {.user_count = 0};
+    printf("Main process is running\n");
 
     while (1) {
         int user_count_each_while = 0;
@@ -42,8 +39,6 @@ int main() {
         SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
         msg->message_count = user_count_each_while;
 
-        printf("Main process is running\n");
-
         for (int i = 0; i < user_count_each_while; i++) {
             userInfo* user = get_user_input(&users_list);
             users_array[i] = user;
@@ -58,9 +53,7 @@ int main() {
             }
         }
 
-        for (int i = 0; i < user_count_each_while; i++) {
-            wait(NULL);
-        }
+        for (int i = 0; i < user_count_each_while; i++) wait(NULL);
 
         printf("users count: %d\n", users_list.user_count);
 
@@ -68,7 +61,7 @@ int main() {
             print_user_data(users_list.users[i]);
         }
 
-        printf("do you want to continue ? (y/n): ");
+        printf("Do you want to continue ? (y/n): ");
         scanf("%s", command);
         if (strcmp(command, "y") != 0) break;
     }

@@ -72,13 +72,13 @@ userInfo* get_user_input(users* users_list) {
     };
 
     strcpy(orderList[0].name, "Dress");
-    orderList[0].count = 1;
+    orderList[0].count = 3;
     strcpy(orderList[1].name, "Smartphone");
-    orderList[1].count = 3;
+    orderList[1].count = 1;
     strcpy(orderList[2].name, "Foundation");
-    orderList[2].count = 2;
+    orderList[2].count = 6;
 
-    priceThreshold = 2200;
+    priceThreshold = 7000;
     
     
     strcpy(user->userID, userID);
@@ -88,7 +88,6 @@ userInfo* get_user_input(users* users_list) {
     }
     user->priceThreshold = priceThreshold;
 
-    // madareto gaeedam
     sleep(2);
 
     return user;

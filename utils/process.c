@@ -443,48 +443,60 @@ void* handle_scores(void *args) {
 
     printf("%s %s %s %s\n", msg->messages[0].userID, msg->messages[1].userID, msg->messages[0].itemPaths[0], msg->messages[1].itemPaths[0]);
 
-    char* name_ptrs[ORDER_COUNT];
-    int scores[ORDER_COUNT] = {0};
-
-    for (int i = 0; i < ORDER_COUNT; i++) {
-        char item_name[100];
-        float item_price;
-        float item_score;
-        int item_entity;
-        char fullPath[256] = DATASET;
-        for (int user_index = 0; user_index < msg->message_count; user_index++) {
-            if (strcmp(msg->messages[user_index].userID, order_args->user->userID) == 0) {
-                strcat(fullPath, msg->messages[user_index].itemPaths[i]);
-            }
-        }
-        read_item_data(fullPath, item_name, &item_price, &item_score, &item_entity);
-        
-        name_ptrs[i] = strdup(item_name);
-    }
-
-    // handle_store_scores(name_ptrs, scores, ORDER_COUNT);
-
-    for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
-    
     enter_critical_section(shmem_update_score_lock);
-    for (int i = 0; i < ORDER_COUNT; i++) {
 
-        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0 && strcmp(msg->messages[user_index].itemPaths[i], "") == 0) continue;
+        char* name_ptrs[ORDER_COUNT];
+        int scores[ORDER_COUNT] = {0};
 
-        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) printf("please enter the score for %s: ", msg->messages[user_index].itemPaths[i]);
-
-        scanf("%d", &user_score);
-
-        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) printf("User score for %s: %d\n", msg->messages[user_index].itemPaths[i], user_score);
-
-        if (user_score < 0 || user_score > 10) {
-            printf("Invalid score\n");
-            i--;
-            continue;
+        for (int i = 0; i < ORDER_COUNT; i++) {
+            char item_name[100];
+            float item_price;
+            float item_score;
+            int item_entity;
+            char fullPath[256] = DATASET;
+            for (int user_index = 0; user_index < msg->message_count; user_index++) {
+                if (strcmp(msg->messages[user_index].userID, order_args->user->userID) == 0) {
+                    strcat(fullPath, msg->messages[user_index].itemPaths[i]);
+                }
+            }
+            read_item_data(fullPath, item_name, &item_price, &item_score, &item_entity);
+            
+            name_ptrs[i] = strdup(item_name);
         }
 
-        for (int user_index = 0; user_index < msg->message_count; user_index++) if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) update_score_and_LMT(user_score, msg->messages[user_index].itemPaths[i]);
-    }
+        // handle_store_scores(name_ptrs, scores, ORDER_COUNT);
+
+        for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
+        
+        for (int i = 0; i < ORDER_COUNT; i++) {
+
+            for (int user_index = 0; user_index < msg->message_count; user_index++) 
+                if ( strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0 &&
+                    strcmp(msg->messages[user_index].itemPaths[i], "") == 0)
+                    continue;
+
+            for (int user_index = 0; user_index < msg->message_count; user_index++) 
+                if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) 
+                    printf("please enter the score for %s: ", msg->messages[user_index].itemPaths[i]);
+
+            scanf("%d", &user_score);
+
+            for (int user_index = 0; user_index < msg->message_count; user_index++)
+                if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) 
+                    printf("User score for %s: %d\n", msg->messages[user_index].itemPaths[i], user_score);
+
+            if (user_score < 0 || user_score > 10) {
+                printf("Invalid score\n");
+                i--;
+                continue;
+            }
+
+            for (int user_index = 0; user_index < msg->message_count; user_index++) 
+                if (strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0) 
+                    // update_score_and_LMT(scores[i], msg->messages[user_index].itemPaths[i]);
+                    update_score_and_LMT(user_score, msg->messages[user_index].itemPaths[i]);
+        }
+
     exit_critical_section(shmem_update_score_lock);
 
     exit_critical_section(&enter_score_lock);
@@ -555,10 +567,13 @@ void* handle_final(void *args) {
         printf("---------------- %s %s %s %s\n", msg->messages[0].userID, msg->messages[1].userID, msg->messages[0].itemPaths[0], msg->messages[1].itemPaths[0]);
         memcpy(shmem, msg, sizeof(msg));
     }
-    // displayFinalOrderText("Best order for user is finalized", 
-    //     best_shopping_list_index, 
-    //     order_args->user->userID);
+
+    displayFinalOrderText("Best order for user is finalized", 
+        best_shopping_list_index, 
+        order_args->user->userID);
+    
     exit_critical_section(&order_lock);
+
 }
 
 pthread_t create_thread_for_orders(userInfo* user, OrderThreadArgs* args) {
