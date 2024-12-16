@@ -17,6 +17,8 @@
 #include <sys/mman.h>
 #include <time.h>
 
+int isThereBestShoppingList;
+
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
 
@@ -436,6 +438,7 @@ void* handle_orders(void *args) {
 
 void* handle_scores(void *args) {
     sleep(ORDER_DELAY * 3 + 2);
+    if (isThereBestShoppingList == -1) return;
     enter_critical_section(&enter_score_lock);
     int user_score = -1;
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
@@ -517,9 +520,11 @@ void* handle_final(void *args) {
             break;
         }
     }
-    if (best_shopping_list_index==-1) {
+    if (best_shopping_list_index == -1) {
+        isThereBestShoppingList = -1;
         printf("No order for user %s is finalized\n", order_args->user->userID);
     } else {
+        isThereBestShoppingList = 1;
         char bestStore[10];
 
         if (best_shopping_list_index == 0) {
