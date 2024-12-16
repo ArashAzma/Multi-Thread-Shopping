@@ -185,7 +185,6 @@ void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[U
         if(saveClicked) break;
     }
 
-    CloseWindow();
 
     int c = 0;
     for (int i = 0; i < total_names; i++) {
@@ -198,6 +197,8 @@ void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[U
     }
     strcpy(username_input, username);
     strcpy(priceThreshold_input, priceThreshold);
+
+    CloseWindow();
     return 0;
 }
 
@@ -236,6 +237,7 @@ void handle_store_scores(char** names, int* scores, int order_count) {
         fprintf(stderr, "Invalid input to handle_store_scores\n");
         return;
     }
+
     SetTraceLogLevel(LOG_NONE);
     InitWindow(800, 600, "Store Scores Input");
     SetTargetFPS(60);
@@ -247,7 +249,7 @@ void handle_store_scores(char** names, int* scores, int order_count) {
         return;
     }
 
-    for(int i = 0; i < order_count; i++) {
+    for (int i = 0; i < order_count; i++) {
         items[i].itemName = strdup(names[i]);
         items[i].score = -1;
         items[i].isScoreEntered = false;
@@ -261,10 +263,10 @@ void handle_store_scores(char** names, int* scores, int order_count) {
         ClearBackground(WHITE);
 
         char prompt[256];
-        snprintf(prompt, sizeof(prompt), 
-                 "Enter score for %s (0-10):", 
+        snprintf(prompt, sizeof(prompt),
+                 "Enter score for %s (0-10):",
                  items[current_item].itemName);
-        
+
         DrawText(prompt, 50, 200, 20, BLACK);
         DrawText("Use numbers and ENTER to confirm", 50, 230, 16, GRAY);
 
@@ -286,15 +288,16 @@ void handle_store_scores(char** names, int* scores, int order_count) {
 
         if (IsKeyPressed(KEY_ENTER)) {
             int user_score = atoi(input_text);
-            
+
             if (user_score >= 0 && user_score <= 10) {
                 items[current_item].score = user_score;
                 items[current_item].isScoreEntered = true;
-                
+
                 current_item++;
-                
+
                 memset(input_text, 0, sizeof(input_text));
             } else {
+                DrawText("Invalid score. Please enter a score between 0 and 10.", 50, 300, 20, RED);
                 memset(input_text, 0, sizeof(input_text));
             }
         }
@@ -303,15 +306,15 @@ void handle_store_scores(char** names, int* scores, int order_count) {
         for (int i = 0; i < order_count; i++) {
             char score_text[100];
             if (items[i].isScoreEntered) {
-                snprintf(score_text, sizeof(score_text), 
+                snprintf(score_text, sizeof(score_text),
                          "%s: %d", items[i].itemName, items[i].score);
                 DrawText(score_text, 50, 380 + i * 30, 16, BLACK);
             } else if (i == current_item) {
-                snprintf(score_text, sizeof(score_text), 
+                snprintf(score_text, sizeof(score_text),
                          "%s: Entering...", items[i].itemName);
                 DrawText(score_text, 50, 380 + i * 30, 16, BLUE);
             } else {
-                snprintf(score_text, sizeof(score_text), 
+                snprintf(score_text, sizeof(score_text),
                          "%s: Not entered", items[i].itemName);
                 DrawText(score_text, 50, 380 + i * 30, 16, GRAY);
             }
@@ -324,12 +327,12 @@ void handle_store_scores(char** names, int* scores, int order_count) {
         EndDrawing();
     }
 
-    CloseWindow();
     for (int i = 0; i < order_count; i++) {
         scores[i] = items[i].score;
-        
+
         free(items[i].itemName);
     }
 
     free(items);
+    CloseWindow();
 }
