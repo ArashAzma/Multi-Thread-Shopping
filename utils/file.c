@@ -120,8 +120,8 @@ int find_store_dirs(char store_dirs[][MAX_PATH_LEN]) {
     char path[MAX_PATH_LEN];
     int store_dir_count = 0;
 
-    fp = popen("find Dataset -mindepth 1 -maxdepth 1 -type d", "r");
-    // fp = popen("find DatasetTest -mindepth 1 -maxdepth 1 -type d", "r");
+    // fp = popen("find Dataset -mindepth 1 -maxdepth 1 -type d", "r");
+    fp = popen("find DatasetTest -mindepth 1 -maxdepth 1 -type d", "r");
 
     while (fgets(path, sizeof(path), fp) != NULL) {
         path[strcspn(path, "\n")] = '\0';
