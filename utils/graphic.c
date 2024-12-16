@@ -143,7 +143,7 @@ void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[U
         }
 
         BeginDrawing();
-        ClearBackground(SKYBLUE);
+        ClearBackground(WHITE);
 
         for (int i = 0; i < MAX_DISPLAY_ITEMS; i++) {
             int index = (scrollOffset / 50) + i;

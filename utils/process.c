@@ -123,7 +123,7 @@ void* process_item(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
 
     char line[100], log_path[MAX_PATH_LEN];
-    // printf("PID: %d create thread for %s: TID:%lu\n", getppid(), args->item_path, pthread_self());
+    printf("PID: %d create thread for %s: TID:%lu\n", getppid(), args->item_path, pthread_self());
 
     enter_critical_section(&file_lock);
     sprintf(log_path, "%s/%s_%d.log", args->category_path, args->user->userID, (args->user->store1_order_count + args->user->store2_order_count + args->user->store3_order_count));
@@ -266,12 +266,10 @@ void* thread_job(void* arg) {
             args->sw=1;
         }
         sleep(10);
-        // printf("ALIVE : %lu\n", pthread_self());
 
         SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
         
         for (int user_index = 0; user_index < msg->message_count; user_index++) {
-            // printf("%s %s\n", msg->messages[user_index].userID, args->user->userID);
             if (strcmp(msg->messages[user_index].userID, args->user->userID) == 0) {
                 for (int i = 0; i < ORDER_COUNT; i++){
                     if (strcmp(msg->messages[user_index].itemPaths[i], "") != 0) {
@@ -320,7 +318,7 @@ void create_process_for_category(char category_path[], userInfo* user) {
         perror("Fork failed");
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
-        // printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
+        printf("PID: %d create child for %s PID: %d\n", getppid(), category_path, getpid());
 
         char log_path[MAX_PATH_LEN];
         sprintf(log_path, "%s/%s_%d.log", category_path, user->userID, (user->store1_order_count + user->store2_order_count + user->store3_order_count));
@@ -364,7 +362,7 @@ void create_process_for_store(char store_path[], userInfo* user) {
         pids[i] = fork();
         if (pids[i] == 0) {
             create_process_for_category(sub_dirs[i], user);
-            // printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
+            printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
             exit(0); 
         }
     }
@@ -373,6 +371,7 @@ void create_process_for_store(char store_path[], userInfo* user) {
 }
 
 void* handle_orders(void *args) {
+    printf("PID: %d create thread for Orders: TID:%lu\n", getppid(), pthread_self());
     sleep(ORDER_DELAY);
     
     char QUEUE_NAME[50];
@@ -437,6 +436,7 @@ void* handle_orders(void *args) {
 }
 
 void* handle_scores(void *args) {
+    printf("PID: %d create thread for Scores: TID:%lu\n", getppid(), pthread_self());
     sleep(ORDER_DELAY * 3 + 2);
     if (isThereBestShoppingList == -1) return;
     enter_critical_section(&enter_score_lock);
@@ -510,6 +510,7 @@ void* handle_scores(void *args) {
 }
 
 void* handle_final(void *args) {
+    printf("PID: %d create thread for Final: TID:%lu\n", getppid(), pthread_self());
     sleep(ORDER_DELAY + 1);
     enter_critical_section(&order_lock);
     
@@ -626,6 +627,7 @@ pthread_t create_thread_for_final(userInfo* user, OrderThreadArgs* args) {
 }
 
 void create_process_for_user(userInfo* user) {
+    printf("%s create PID: %d\n", user->userID, getpid());
     char store_dirs[3][256];
     int store_dir_count = find_store_dirs(store_dirs);
 
@@ -639,8 +641,6 @@ void create_process_for_user(userInfo* user) {
     sprintf(QUEUE_NAME, "/%s", user->userID);
     mq_unlink(QUEUE_NAME);
     init_message_queue(QUEUE_NAME);
-    // shmem = create_shared_memory(sizeof(ThreadMessage));
-
 
     pid_t store_pids[store_dir_count];
 
@@ -652,7 +652,6 @@ void create_process_for_user(userInfo* user) {
             exit(EXIT_FAILURE);
         } else if (pid == 0) {
             create_process_for_store(store_dirs[i], user);
-            // printf("%s create PID: %d\n", user->userID, getpid());
             exit(0); 
         } else {
             store_pids[i] = pid;
