@@ -72,6 +72,7 @@ typedef struct {
     char userID[20];
     char itemPaths[10][256];
     int item_count[10];
+    int item_scores[10];
 } ThreadMessage;
 
 typedef struct {

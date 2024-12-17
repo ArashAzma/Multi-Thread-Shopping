@@ -265,7 +265,7 @@ void* thread_job(void* arg) {
             process_item(args);
             args->sw=1;
         }
-        sleep(10);
+        sleep(13);
 
         SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
         
@@ -278,6 +278,7 @@ void* thread_job(void* arg) {
                         if (strcmp(full_path, args->item_path) == 0) {
                             printf("Thread %lu In Path %s Found %s --- entity requested: %d\n", pthread_self(), args->item_path, full_path, msg->messages[user_index].item_count[i]);
                             update_entity(msg->messages[user_index].item_count[i], args->item_path);
+                            update_score_and_LMT(msg->messages[user_index].item_scores[i], msg->messages[user_index].itemPaths[i]);
                             break;
                         }
                     }
@@ -346,7 +347,7 @@ void create_process_for_category(char category_path[], userInfo* user) {
         
         // Parent process of threads
         mq_close(mq);
-        sleep(15);
+        sleep(20);
         exit(0);
     } else {
         wait(NULL);
@@ -437,7 +438,7 @@ void* handle_orders(void *args) {
 
 void* handle_scores(void *args) {
     printf("PID: %d create thread for Scores: TID:%lu\n", getppid(), pthread_self());
-    sleep(ORDER_DELAY * 3 + 2);
+    sleep(ORDER_DELAY + 2);
     if (isThereBestShoppingList == -1) return;
     enter_critical_section(&enter_score_lock);
     int user_score = -1;
@@ -448,16 +449,16 @@ void* handle_scores(void *args) {
 
     enter_critical_section(shmem_update_score_lock);
 
+        int user_index = 0;
+        for (user_index = 0; user_index < msg->message_count; user_index++){
+            int isTheSameUser = strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0;
+            if(isTheSameUser) break;
+        }
+
         // GRAPHIC
-        // /*
+        /*
             char* name_ptrs[ORDER_COUNT];
             int scores[ORDER_COUNT] = {0};
-
-            int user_index = 0;
-            for (user_index = 0; user_index < msg->message_count; user_index++){
-                int isTheSameUser = strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0;
-                if(isTheSameUser) break;
-            }
 
             for (int i = 0; i < ORDER_COUNT; i++) {
                 int isPathEmpty = strcmp(msg->messages[user_index].itemPaths[i], "") == 0;
@@ -478,11 +479,11 @@ void* handle_scores(void *args) {
             handle_store_scores(name_ptrs, scores, ORDER_COUNT);
             for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
             for (int i = 0; i < ORDER_COUNT; i++)update_score_and_LMT(scores[i], msg->messages[user_index].itemPaths[i]);
-        // */
+        */
         
 
         // TERMINAL
-        /*
+        // /*
         for (int i = 0; i < ORDER_COUNT; i++) {
             int isPathEmpty = strcmp(msg->messages[user_index].itemPaths[i], "") == 0;
 
@@ -500,9 +501,10 @@ void* handle_scores(void *args) {
                 continue;
             }
 
-            update_score_and_LMT(user_score, msg->messages[user_index].itemPaths[i]);
+            msg->messages[user_index].item_scores[i] = user_score;
+            // update_score_and_LMT(user_score, msg->messages[user_index].itemPaths[i]);
         }
-        */
+        // */
 
     exit_critical_section(shmem_update_score_lock);
 
@@ -577,11 +579,15 @@ void* handle_final(void *args) {
         printf("---------------- %s %s %s %s\n", msg->messages[0].userID, msg->messages[1].userID, msg->messages[0].itemPaths[0], msg->messages[1].itemPaths[0]);
         memcpy(shmem, msg, sizeof(msg));
     }
-    if(isThereBestShoppingList!=-1){
-        displayFinalOrderText("Best order for user is finalized", 
-            best_shopping_list_index, 
-            order_args->user->userID);
-    }
+
+    // GRAPHIC
+    /*
+        if(isThereBestShoppingList!=-1){
+            displayFinalOrderText("Best order for user is finalized", 
+                best_shopping_list_index, 
+                order_args->user->userID);
+        }
+    */
     
     exit_critical_section(&order_lock);
 
