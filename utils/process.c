@@ -133,7 +133,7 @@ void* process_item(void* arg) {
     fprintf(log_file, "thread with ID of %lu exploring item %s\n", pthread_self(), args->item_path);
     fclose(log_file);
     exit_critical_section(&file_lock);
-
+    
     FILE* file = fopen(args->item_path, "r");
     if (file == NULL) {
         printf("Failed to open file\n");
@@ -334,7 +334,8 @@ void create_process_for_category(char category_path[], userInfo* user) {
 
         pthread_t threads[item_count];
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
-        for (long int i=0; i<50000000 ;i++);
+        for (long int i = 0; i < 100000000 ;i++);
+        printf("------------------------------------------------------------------------\n");
 
         int user_index = find_user_index(user->userID, 0);
 
