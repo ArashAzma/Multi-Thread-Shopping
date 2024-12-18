@@ -22,7 +22,7 @@ int isThereBestShoppingList;
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
 
-#define SLEEP 15 
+#define SLEEP 25 
 
 mqd_t init_message_queue(char QUEUE_NAME[50]) {
     struct mq_attr attr;

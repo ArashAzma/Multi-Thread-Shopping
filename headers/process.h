@@ -19,8 +19,8 @@
 #define MAX_MESSAGES 10
 
 #define MAX_STORES 3
-#define DATASET "DatasetTest/"
-// #define DATASET "Dataset/"
+// #define DATASET "DatasetTest/"
+#define DATASET "Dataset/"
 
 #define SHM_KEY 12345
 #define NUM_STRINGS 10  
