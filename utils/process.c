@@ -373,7 +373,7 @@ void create_process_for_store(char store_path[], userInfo* user) {
 
 void* handle_orders(void *args) {
     printf("PID: %d create thread for Orders: TID:%lu\n", getppid(), pthread_self());
-    sleep(ORDER_DELAY);
+    sleep(ORDER_DELAY); 
     
     char QUEUE_NAME[50];
     sprintf(QUEUE_NAME, "/%s", ((OrderThreadArgs*)args)->user->userID);
