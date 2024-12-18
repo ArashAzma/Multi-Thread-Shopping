@@ -22,9 +22,9 @@ int isThereBestShoppingList;
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
 
-#define SLEEP 25 
+char QUEUE_NAME[50];
 
-mqd_t init_message_queue(char QUEUE_NAME[50]) {
+mqd_t init_message_queue() {
     struct mq_attr attr;
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
@@ -134,13 +134,6 @@ void* process_item(void* arg) {
     fclose(log_file);
     exit_critical_section(&file_lock);
 
-    FILE* file = fopen(args->item_path, "r");
-    if (file == NULL) {
-        printf("Failed to open file\n");
-        free(args);
-        return NULL;
-    }
-    fgets(line, sizeof(line), file);
     char store_name[100];
     get_store_name(args->item_path, store_name);
 
@@ -334,12 +327,11 @@ void create_process_for_category(char category_path[], userInfo* user) {
 
         pthread_t threads[item_count];
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
+        
         for (long int i=0; i<50000000 ;i++);
 
         int user_index = find_user_index(user->userID, 0);
 
-        char QUEUE_NAME[50];
-        sprintf(QUEUE_NAME, "/%s", user->userID);
         mqd_t mq = mq_open(QUEUE_NAME, O_WRONLY);
         if (mq == (mqd_t)-1) {
             perror("Failed to open message queue in category process");
@@ -349,7 +341,7 @@ void create_process_for_category(char category_path[], userInfo* user) {
         
         // Parent process of threads
         mq_close(mq);
-        sleep(SLEEP+10);
+        sleep(SLEEP+2);
         exit(0);
     } else {
         wait(NULL);
@@ -364,8 +356,8 @@ void create_process_for_store(char store_path[], userInfo* user) {
     for (int i = 0; i < sub_dir_count; i++) {
         pids[i] = fork();
         if (pids[i] == 0) {
-            create_process_for_category(sub_dirs[i], user);
             printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
+            create_process_for_category(sub_dirs[i], user);
             exit(0); 
         }
     }
@@ -377,7 +369,6 @@ void* handle_orders(void *args) {
     printf("PID: %d create thread for Orders: TID:%lu\n", getppid(), pthread_self());
     sleep(ORDER_DELAY); 
     
-    char QUEUE_NAME[50];
     sprintf(QUEUE_NAME, "/%s", ((OrderThreadArgs*)args)->user->userID);
     mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY | O_NONBLOCK);
     if (mq == (mqd_t)-1) {
@@ -479,11 +470,11 @@ void* handle_scores(void *args) {
             }
 
             handle_store_scores(name_ptrs, scores, ORDER_COUNT, order_args->user->userID);
-            for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
-            for (int i = 0; i < ORDER_COUNT; i++) msg->messages[user_index].item_scores[i] = scores[i];
-            // for (int i = 0; i < ORDER_COUNT; i++) update_score_and_LMT(scores[i], msg->messages[user_index].itemPaths[i]);
+            for (int i = 0; i < ORDER_COUNT; i++) 
+                free(name_ptrs[i]);
+            for (int i = 0; i < ORDER_COUNT; i++) 
+                msg->messages[user_index].item_scores[i] = scores[i];
         // */
-        
 
         // TERMINAL
         /*
@@ -505,7 +496,7 @@ void* handle_scores(void *args) {
             }
 
             msg->messages[user_index].item_scores[i] = user_score;
-            // update_score_and_LMT(user_score, msg->messages[user_index].itemPaths[i]);
+            printf("SCORE SCORE %d\n", msg->messages[user_index].item_scores[i]);
         }
         */
 
@@ -635,6 +626,27 @@ pthread_t create_thread_for_final(userInfo* user, OrderThreadArgs* args) {
     return thread;
 }
 
+void cleanup_resources() {
+    mq_unlink(QUEUE_NAME);
+
+    user_search_results_count = 0;
+    isThereBestShoppingList = 0;
+
+    pthread_mutex_destroy(&lock);
+    pthread_mutex_destroy(&shopping_lock);
+    pthread_mutex_destroy(&file_lock);
+    pthread_mutex_destroy(&user_lock);
+    pthread_mutex_destroy(&category_lock);
+    pthread_mutex_destroy(&order_lock);
+    pthread_mutex_destroy(&msq_lock);
+    pthread_mutex_destroy(&update_entity_lock);
+    pthread_mutex_destroy(&enter_score_lock);
+    pthread_mutex_destroy(&update_score_lock);
+    
+    user_search_results_count = 0;
+    isThereBestShoppingList = 0;
+}
+
 void create_process_for_user(userInfo* user) {
     printf("%s create PID: %d\n", user->userID, getpid());
     char store_dirs[3][256];
@@ -645,8 +657,6 @@ void create_process_for_user(userInfo* user) {
     pthread_t orderThread = create_thread_for_orders(user, args);
     pthread_t scoreThread = create_thread_for_scores(user, args);
     pthread_t finalThread = create_thread_for_final(user, args);
-
-    char QUEUE_NAME[50];
     sprintf(QUEUE_NAME, "/%s", user->userID);
     mq_unlink(QUEUE_NAME);
     init_message_queue(QUEUE_NAME);
@@ -672,14 +682,14 @@ void create_process_for_user(userInfo* user) {
     pthread_join(scoreThread, NULL);
     pthread_join(finalThread, NULL);
 
-    if (munmap(shmem, sizeof(ThreadMessage)) != 0) {
-        perror("munmap failed");
-    }
-    free(args);
+    if (munmap(shmem, sizeof(ThreadMessage)) != 0) perror("munmap failed");
 
     char path[50];
     sprintf(path, "%s.txt", user->userID);
     FILE* file = fopen(path, "w");
     fprintf(file, "%d %d %d\n", user->store1_order_count, user->store2_order_count, user->store3_order_count);
     fclose(file);
+    free(args);
+    sleep(3);
+    cleanup_resources();
 }

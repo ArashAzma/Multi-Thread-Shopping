@@ -80,7 +80,7 @@ userInfo* get_user_input(users* users_list) {
         strcpy(orderList[2].name, "Foundation");
         orderList[2].count = 6;
 
-        priceThreshold = 7000;
+        priceThreshold = 5000;
     */
     
     

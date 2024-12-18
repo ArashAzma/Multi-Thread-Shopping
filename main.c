@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <signal.h>
 
 #include "headers/process.h"
 #include "headers/file.h"
@@ -24,6 +25,7 @@ int main() {
 
     while (1) {
         int user_count_each_while = 0;
+        pid_t child_pids[MAX_USERS]; 
         char command[10];
         userInfo* users_array[10];
 
@@ -46,10 +48,15 @@ int main() {
         }
 
         for (int i = 0; i < user_count_each_while; i++) {
-            int pid = fork();
+            pid_t pid = fork();
             if (pid == 0) {
                 create_process_for_user(users_array[i]);
-                exit(0);
+                exit(0); 
+            } else if (pid > 0) {
+                child_pids[i] = pid; 
+            } else {
+                perror("fork");
+                exit(1);
             }
         }
 
@@ -74,7 +81,8 @@ int main() {
         for (int i = 0; i < users_list.user_count; i++) {
             print_user_data(users_list.users[i]);
         }
-
+        for (int i = 0; i < user_count_each_while; i++) kill(child_pids[i], SIGKILL);
+        
         printf("Do you want to continue ? (y/n): ");
         scanf("%s", command);
         if (strcmp(command, "y") != 0) break;
