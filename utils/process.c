@@ -480,6 +480,7 @@ void* handle_scores(void *args) {
 
             handle_store_scores(name_ptrs, scores, ORDER_COUNT);
             for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
+            for (int i = 0; i < ORDER_COUNT; i++) msg->messages[user_index].item_scores[i] = scores[i];
             // for (int i = 0; i < ORDER_COUNT; i++) update_score_and_LMT(scores[i], msg->messages[user_index].itemPaths[i]);
         // */
         
@@ -491,7 +492,7 @@ void* handle_scores(void *args) {
 
             if (isPathEmpty) continue;
 
-            printf("please enter the score for %s: ", msg->messages[user_index].itemPaths[i]);
+            printf("user %s ,please enter the score for %s: ", order_args->user->userID, msg->messages[user_index].itemPaths[i]);
 
             scanf("%d", &user_score);
 
