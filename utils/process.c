@@ -370,7 +370,7 @@ void create_process_for_store(char store_path[], userInfo* user) {
 
     for (int i = 0; i < sub_dir_count; i++) waitpid(pids[i], NULL, 0); 
 }
-
+   
 void* handle_orders(void *args) {
     printf("PID: %d create thread for Orders: TID:%lu\n", getppid(), pthread_self());
     sleep(ORDER_DELAY); 
