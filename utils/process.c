@@ -365,8 +365,8 @@ void create_process_for_store(char store_path[], userInfo* user) {
     for (int i = 0; i < sub_dir_count; i++) {
         pids[i] = fork();
         if (pids[i] == 0) {
-            create_process_for_category(sub_dirs[i], user);
             printf("PID: %d create child for %s PID: %d\n", getppid(), store_path, getpid());
+            create_process_for_category(sub_dirs[i], user);
             exit(0); 
         }
     }

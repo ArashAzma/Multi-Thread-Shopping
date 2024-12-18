@@ -53,7 +53,7 @@ Architectures that was used:
 ![alt text](images/2.png)
 
 #### 5. Scores Thread
- - Gets Scores for items from users and updates them
+ - Gets Scores for items from users and send them for threads that read items from files to update them
  - Updates last modified time for items that have changed
 
 ![alt text](images/3.png)
