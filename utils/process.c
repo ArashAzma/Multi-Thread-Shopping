@@ -22,6 +22,8 @@ int isThereBestShoppingList;
 UserSearchResults user_search_results[MAX_USERS];
 int user_search_results_count = 0;
 
+#define SLEEP 15 
+
 mqd_t init_message_queue(char QUEUE_NAME[50]) {
     struct mq_attr attr;
     attr.mq_flags = 0;
@@ -265,7 +267,7 @@ void* thread_job(void* arg) {
             process_item(args);
             args->sw=1;
         }
-        sleep(13);
+        sleep(SLEEP);
 
         SharedThreadMessages* msg = (SharedThreadMessages*)shmem;
         
@@ -347,7 +349,7 @@ void create_process_for_category(char category_path[], userInfo* user) {
         
         // Parent process of threads
         mq_close(mq);
-        sleep(20);
+        sleep(SLEEP+10);
         exit(0);
     } else {
         wait(NULL);
