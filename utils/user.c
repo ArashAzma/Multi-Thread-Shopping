@@ -83,7 +83,6 @@ userInfo* get_user_input(users* users_list) {
         priceThreshold = 5000;
     */
     
-    
     strcpy(user->userID, userID);
     for (int i = 0; i < ORDER_COUNT; i++) {
         strcpy(user->orderList[i].name, orderList[i].name);
@@ -91,6 +90,6 @@ userInfo* get_user_input(users* users_list) {
     }
     user->priceThreshold = priceThreshold;
 
-    sleep(2);
+    sleep(12);
     return user;
 }

@@ -24,6 +24,13 @@ int user_search_results_count = 0;
 
 char QUEUE_NAME[50];
 
+typedef struct count {
+    int founded;
+} CF;
+
+void* ordermem = NULL;
+void* countmem = NULL;
+
 mqd_t init_message_queue() {
     struct mq_attr attr;
     attr.mq_flags = 0;
@@ -151,7 +158,6 @@ void* process_item(void* arg) {
 
     char fileName[100];
     get_file_name(args->item_path, fileName);
-
     for (int i = 0; i < ORDER_COUNT; i++) {
         if (strcasecmp(args->user->orderList[i].name, item_name) == 0 && args->user->orderList[i].count <= item_entity) {
             Item item = {0};
@@ -169,6 +175,11 @@ void* process_item(void* arg) {
                 args->item_path, args->user->userID, item_name, item_price, item_score, item_entity, category);
 
             add_item_to_category(user, &item, category);
+            enter_critical_section(&count_lock);
+            CF* countsg = (CF*)countmem;
+            countsg->founded++;
+            exit_critical_section(&count_lock);
+
             break;
         }
     }
@@ -255,6 +266,7 @@ void update_score_and_LMT(float user_score, char item_path[]) {
 void* thread_job(void* arg) {
     pthread_detach(pthread_self());
     ThreadArgs* args = (ThreadArgs*)arg;
+    int user_index = find_user_index(args->user->userID, 0);
     while(1){
         if(!args->sw){
             process_item(args);
@@ -328,7 +340,18 @@ void create_process_for_category(char category_path[], userInfo* user) {
         pthread_t threads[item_count];
         for (int i = 0; i < item_count; i++) threads[i] = create_thread_for_item(items[i], user);
         
-        for (long int i=0; i<50000000 ;i++);
+        CF* countsg = (CF*)countmem;
+        while(1){
+            enter_critical_section(&count_lock);
+            printf("countsg->founded %d\n", countsg->founded);
+            if(countsg->founded == 3 * ORDER_COUNT){
+                exit_critical_section(&count_lock);
+                sleep(2);
+                break;
+            }
+            exit_critical_section(&count_lock);
+            sleep(2);
+        }
 
         int user_index = find_user_index(user->userID, 0);
 
@@ -339,9 +362,14 @@ void create_process_for_category(char category_path[], userInfo* user) {
         }
         send_message(mq, &user_search_results[user_index], user_index);
         
+        CF* ordersg = (CF*)ordermem;
+        enter_critical_section(&order_lock2);
+        ordersg->founded = 1;
+        exit_critical_section(&order_lock2);
+
         // Parent process of threads
-        mq_close(mq);
         sleep(SLEEP+2);
+        mq_close(mq);
         exit(0);
     } else {
         wait(NULL);
@@ -367,8 +395,17 @@ void create_process_for_store(char store_path[], userInfo* user) {
    
 void* handle_orders(void *args) {
     printf("PID: %d create thread for Orders: TID:%lu\n", getppid(), pthread_self());
-    sleep(ORDER_DELAY); 
-    
+    CF* ordersg = (CF*)ordermem;
+    while(1){
+        enter_critical_section(&order_lock2);
+        if(ordersg->founded==1){
+            exit_critical_section(&order_lock2);
+            break;
+        }
+        exit_critical_section(&order_lock2);
+        sleep(2);
+    }
+    printf("HANDLE ORDER EXITED\n");
     sprintf(QUEUE_NAME, "/%s", ((OrderThreadArgs*)args)->user->userID);
     mqd_t mq = mq_open(QUEUE_NAME, O_RDONLY | O_NONBLOCK);
     if (mq == (mqd_t)-1) {
@@ -420,6 +457,7 @@ void* handle_orders(void *args) {
         } else {
             order_args->best_shopping_list_indexes[2] = i;
         }
+        printf("AFTER TOTAL\n");
     }
 
     printf("Best shopping lists in order based on total_value: %d %d %d\n", order_args->best_shopping_list_indexes[0], order_args->best_shopping_list_indexes[1], order_args->best_shopping_list_indexes[2]);
@@ -431,7 +469,16 @@ void* handle_orders(void *args) {
 
 void* handle_scores(void *args) {
     printf("PID: %d create thread for Scores: TID:%lu\n", getppid(), pthread_self());
-    sleep(ORDER_DELAY + 2);
+    CF* ordersg = (CF*)ordermem;
+    while(1){
+        enter_critical_section(&order_lock2);
+        if(ordersg->founded==1){
+            exit_critical_section(&order_lock2);
+            break;
+        }
+        exit_critical_section(&order_lock2);
+        sleep(2);
+    }
     if (isThereBestShoppingList == -1) return;
     enter_critical_section(&enter_score_lock);
     int user_score = -1;
@@ -447,9 +494,9 @@ void* handle_scores(void *args) {
             int isTheSameUser = strcmp(order_args->user->userID, msg->messages[user_index].userID) == 0;
             if(isTheSameUser) break;
         }
-
+        sleep(10);
         // GRAPHIC
-        // /*
+        /*
             char* name_ptrs[ORDER_COUNT];
             int scores[ORDER_COUNT] = {0};
 
@@ -474,10 +521,10 @@ void* handle_scores(void *args) {
                 free(name_ptrs[i]);
             for (int i = 0; i < ORDER_COUNT; i++) 
                 msg->messages[user_index].item_scores[i] = scores[i];
-        // */
+        */
 
         // TERMINAL
-        /*
+        // /*
         for (int i = 0; i < ORDER_COUNT; i++) {
             int isPathEmpty = strcmp(msg->messages[user_index].itemPaths[i], "") == 0;
 
@@ -498,7 +545,7 @@ void* handle_scores(void *args) {
             msg->messages[user_index].item_scores[i] = user_score;
             printf("SCORE SCORE %d\n", msg->messages[user_index].item_scores[i]);
         }
-        */
+        // */
 
     exit_critical_section(shmem_update_score_lock);
 
@@ -507,10 +554,19 @@ void* handle_scores(void *args) {
 
 void* handle_final(void *args) {
     printf("PID: %d create thread for Final: TID:%lu\n", getppid(), pthread_self());
-    sleep(ORDER_DELAY + 1);
+    CF* ordersg = (CF*)ordermem;
+    while(1){
+        enter_critical_section(&order_lock2);
+        if(ordersg->founded==1){
+            exit_critical_section(&order_lock2);
+            break;
+        }
+        exit_critical_section(&order_lock2);
+        sleep(2);
+    }
+    sleep(1);
     enter_critical_section(&order_lock);
     
-
     OrderThreadArgs* order_args = (OrderThreadArgs*)args;
     
     int best_shopping_list_index = -1;
@@ -649,6 +705,14 @@ void cleanup_resources() {
 
 void create_process_for_user(userInfo* user) {
     printf("%s create PID: %d\n", user->userID, getpid());
+    
+    countmem = mmap(NULL, sizeof(CF), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    CF* countsg = (CF*)countmem;
+    countsg->founded = 0;
+    ordermem = mmap(NULL, sizeof(CF), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    CF* ordersg = (CF*)ordermem;
+    ordersg->founded = 0;
+
     char store_dirs[3][256];
     int store_dir_count = find_store_dirs(store_dirs);
 

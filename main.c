@@ -43,6 +43,7 @@ int main() {
 
         for (int i = 0; i < user_count_each_while; i++) {
             userInfo* user = get_user_input(&users_list);
+            printf("NEXT\n");
             users_array[i] = user;
             strcpy(msg->messages[i].userID, user->userID);
         }
