@@ -232,7 +232,7 @@ typedef struct {
     bool isScoreEntered;
 } ItemScore;
 
-void handle_store_scores(char** names, int* scores, int order_count) {
+void handle_store_scores(char** names, int* scores, int order_count, char userID[20]) {
     if (names == NULL || scores == NULL || order_count <= 0) {
         fprintf(stderr, "Invalid input to handle_store_scores\n");
         return;
@@ -264,7 +264,8 @@ void handle_store_scores(char** names, int* scores, int order_count) {
 
         char prompt[256];
         snprintf(prompt, sizeof(prompt),
-                 "Enter score for %s (0-10):",
+                 "user %s , Enter score for %s (0-10):",
+                 userID,
                  items[current_item].itemName);
 
         DrawText(prompt, 50, 200, 20, BLACK);

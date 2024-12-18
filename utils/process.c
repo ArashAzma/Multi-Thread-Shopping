@@ -478,7 +478,7 @@ void* handle_scores(void *args) {
                 name_ptrs[i] = strdup(item_name);
             }
 
-            handle_store_scores(name_ptrs, scores, ORDER_COUNT);
+            handle_store_scores(name_ptrs, scores, ORDER_COUNT, order_args->user->userID);
             for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
             for (int i = 0; i < ORDER_COUNT; i++) msg->messages[user_index].item_scores[i] = scores[i];
             // for (int i = 0; i < ORDER_COUNT; i++) update_score_and_LMT(scores[i], msg->messages[user_index].itemPaths[i]);

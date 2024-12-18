@@ -21,6 +21,6 @@ typedef struct {
 
 void get_user_input_graphic(order order_list[ORDER_COUNT], char username_input[USER_ID_LENGTH], char priceThreshold_input[PRICE_THRESHOLD_INPUT]);
 void displayFinalOrderText(const char* text, int store_index, const char* user_id);
-void handle_store_scores(char** names, int* scores, int order_count);
+void handle_store_scores(char** names, int* scores, int order_count, char userID[20]);
 
 #endif
