@@ -79,11 +79,22 @@ userInfo* get_user_input(users* users_list) {
         // orderList[1].count = 1;
         // strcpy(orderList[2].name, "Foundation");
         // orderList[2].count = 6;
-
         printf("please enter your orderlist:\n");
-        scanf(" %[^\n] %d", orderList[0].name, &orderList[0].count);
-        scanf(" %[^\n] %d", orderList[1].name, &orderList[1].count);
-        scanf(" %[^\n] %d", orderList[2].name, &orderList[2].count);
+        printf("Name: \n");
+        getchar();
+        scanf("%[^\n]", orderList[0].name);
+        printf("Count: \n");
+        scanf("%d", &orderList[0].count);
+        printf("Name: \n");
+        getchar();
+        scanf("%[^\n]", orderList[1].name);
+        printf("Count: \n");
+        scanf("%d", &orderList[1].count);
+        printf("Name: \n");
+        getchar();
+        scanf("%[^\n]", orderList[2].name);
+        printf("Count: \n");
+        scanf("%d", &orderList[2].count);
 
         // priceThreshold = 7000;
 
