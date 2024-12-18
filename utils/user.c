@@ -26,7 +26,7 @@ userInfo* get_user_input(users* users_list) {
     userInfo* user;
 
     // GRAPHIC
-    /*
+    // /*
         get_user_input_graphic(orderList, userID, priceThresholdInput);
         for (int i = 0; i < users_list->user_count; i++) {
             if (strcmp(users_list->users[i].userID, userID) == 0) {
@@ -51,11 +51,11 @@ userInfo* get_user_input(users* users_list) {
         for (int i = 0; i < ORDER_COUNT; i++) 
             printf("\t%s %d\n", orderList[i].name, orderList[i].count);
         printf("\n");
-    */
+    // */
 
 
     // TERMINAL
-    // /*
+    /*
         printf("Enter your username: ");
         scanf("%s", userID);
 
@@ -81,7 +81,7 @@ userInfo* get_user_input(users* users_list) {
         orderList[2].count = 6;
 
         priceThreshold = 7000;
-    // */
+    */
     
     
     strcpy(user->userID, userID);

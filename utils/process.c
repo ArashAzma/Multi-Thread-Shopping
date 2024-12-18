@@ -458,7 +458,7 @@ void* handle_scores(void *args) {
         }
 
         // GRAPHIC
-        /*
+        // /*
             char* name_ptrs[ORDER_COUNT];
             int scores[ORDER_COUNT] = {0};
 
@@ -480,12 +480,12 @@ void* handle_scores(void *args) {
 
             handle_store_scores(name_ptrs, scores, ORDER_COUNT);
             for (int i = 0; i < ORDER_COUNT; i++) free(name_ptrs[i]);
-            for (int i = 0; i < ORDER_COUNT; i++)update_score_and_LMT(scores[i], msg->messages[user_index].itemPaths[i]);
-        */
+            // for (int i = 0; i < ORDER_COUNT; i++) update_score_and_LMT(scores[i], msg->messages[user_index].itemPaths[i]);
+        // */
         
 
         // TERMINAL
-        // /*
+        /*
         for (int i = 0; i < ORDER_COUNT; i++) {
             int isPathEmpty = strcmp(msg->messages[user_index].itemPaths[i], "") == 0;
 
@@ -506,7 +506,7 @@ void* handle_scores(void *args) {
             msg->messages[user_index].item_scores[i] = user_score;
             // update_score_and_LMT(user_score, msg->messages[user_index].itemPaths[i]);
         }
-        // */
+        */
 
     exit_critical_section(shmem_update_score_lock);
 
